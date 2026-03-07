@@ -36,8 +36,11 @@ export function useMediaStream(config: MediaStreamConfig = defaultConfig) {
 
   const [isActive, setIsActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isSpeaking, setIsSpeaking] = useState(false);
 
-  const onAudioDataRef = useRef<((data: Int16Array) => void) | null>(null);
+  const onAudioDataRef = useRef<((data: Int16Array, amplitude: number) => void) | null>(null);
+  const voiceThresholdRef = useRef<number>(0.02); // Default threshold (0-1 scale)
+  const smoothingCounterRef = useRef<number>(0); // For hysteresis
 
   const start = useCallback(async () => {
     try {
@@ -80,13 +83,30 @@ export function useMediaStream(config: MediaStreamConfig = defaultConfig) {
         const inputData = e.inputBuffer.getChannelData(0);
         const pcm16 = new Int16Array(inputData.length);
 
+        // Calculate RMS (Root Mean Square) amplitude
+        let sum = 0;
         for (let i = 0; i < inputData.length; i++) {
           const s = Math.max(-1, Math.min(1, inputData[i]));
           pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+          sum += s * s;
         }
+        const rms = Math.sqrt(sum / inputData.length);
+        
+        // Voice Activity Detection with hysteresis
+        const threshold = voiceThresholdRef.current;
+        const isLoudEnough = rms > threshold;
+        
+        if (isLoudEnough) {
+          smoothingCounterRef.current = Math.min(smoothingCounterRef.current + 1, 5);
+        } else {
+          smoothingCounterRef.current = Math.max(smoothingCounterRef.current - 1, 0);
+        }
+        
+        const speaking = smoothingCounterRef.current > 2;
+        setIsSpeaking(speaking);
 
         if (onAudioDataRef.current) {
-          onAudioDataRef.current(pcm16);
+          onAudioDataRef.current(pcm16, rms);
         }
       };
 
@@ -158,8 +178,12 @@ export function useMediaStream(config: MediaStreamConfig = defaultConfig) {
     return dataArray;
   }, []);
 
-  const onAudioData = useCallback((callback: (data: Int16Array) => void) => {
+  const onAudioData = useCallback((callback: (data: Int16Array, amplitude: number) => void) => {
     onAudioDataRef.current = callback;
+  }, []);
+
+  const setVoiceThreshold = useCallback((threshold: number) => {
+    voiceThresholdRef.current = Math.max(0, Math.min(1, threshold));
   }, []);
 
   const setVideoElement = useCallback((element: HTMLVideoElement | null) => {
@@ -182,9 +206,11 @@ export function useMediaStream(config: MediaStreamConfig = defaultConfig) {
     captureFrame,
     getFrequencyData,
     onAudioData,
+    setVoiceThreshold,
     setVideoElement,
     setCanvasElement,
     isActive,
+    isSpeaking,
     error,
   };
 }

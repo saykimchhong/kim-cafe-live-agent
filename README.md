@@ -91,7 +91,7 @@
 
 | Layer | Technology |
 |-------|------------|
-| **AI Model** | Gemini 2.0 Flash Live (`gemini-2.0-flash-live-001`) |
+| **AI Model** | Gemini 2.0 Flash Live (`gemini-2.5-flash-native-audio-preview-12-2025`) |
 | **Frontend** | Next.js 14, Tailwind CSS, Framer Motion, Zustand |
 | **Backend** | FastAPI, WebSockets, google-genai SDK |
 | **Database** | Firebase Firestore |

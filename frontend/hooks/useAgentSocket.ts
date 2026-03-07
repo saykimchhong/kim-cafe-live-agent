@@ -1,61 +1,109 @@
 'use client';
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { useAppStore } from '@/stores/useAppStore';
 import { ScreenName, KimState } from '@/lib/types';
+import { getMenuItemById } from '@/lib/mockData';
 
 interface AgentMessage {
   action: string;
   payload: unknown;
 }
 
-export function useAgentSocket(url?: string) {
+export function useAgentSocket(url?: string, onAiResponse?: () => void) {
   const wsRef = useRef<WebSocket | null>(null);
-  const {
-    navigateScreen,
-    addToCart,
-    removeFromCart,
-    highlightItem,
-    selectItem,
-    setKimState,
-    setKimMessage,
-    showPaymentQR,
-  } = useAppStore();
+  const [isConnected, setIsConnected] = useState(false);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const audioQueueRef = useRef<Float32Array[]>([]);
+  const isPlayingRef = useRef(false);
+  const onAiResponseRef = useRef(onAiResponse);
+  const cleanupRef = useRef(false);  // Track if hook is unmounted
+  const connectingRef = useRef(false);  // Prevent concurrent connections
+  
+  // Keep ref updated
+  onAiResponseRef.current = onAiResponse;
 
-  const connect = useCallback(() => {
-    if (!url) return;
+  // Play queued audio chunks
+  const playNextChunk = useCallback(() => {
+    if (!audioContextRef.current || audioQueueRef.current.length === 0) {
+      isPlayingRef.current = false;
+      return;
+    }
 
-    const ws = new WebSocket(url);
+    isPlayingRef.current = true;
+    const samples = audioQueueRef.current.shift()!;
 
-    ws.onopen = () => {
-      wsRef.current = ws;
+    // Let the browser resample automatically: create an AudioBuffer with the
+    // source sample rate (24kHz) and let the AudioContext handle resampling.
+    const ctx = audioContextRef.current!;
+    const sourceSampleRate = 24000;
+
+    const audioBuffer = ctx.createBuffer(1, samples.length, sourceSampleRate);
+    const channelData = audioBuffer.getChannelData(0);
+    channelData.set(samples);
+    
+    const source = ctx.createBufferSource();
+    source.buffer = audioBuffer;
+    source.connect(ctx.destination);
+    source.onended = () => {
+      setTimeout(playNextChunk, 0);
     };
+    source.start();
+  }, []);
 
-    ws.onmessage = (event) => {
-      try {
-        const message: AgentMessage = JSON.parse(event.data);
-        handleAgentAction(message);
-      } catch {
-        return;
+  // Convert base64 PCM to Float32Array and queue for playback
+  const playAudio = useCallback((base64Audio: string) => {
+    try {
+      if (!audioContextRef.current) {
+        audioContextRef.current = new AudioContext();
       }
-    };
 
-    ws.onclose = () => {
-      wsRef.current = null;
-      setTimeout(connect, 3000);
-    };
-
-    ws.onerror = () => {
-      ws.close();
-    };
-  }, [url]);
+      if (audioContextRef.current.state === 'suspended') {
+        audioContextRef.current.resume().catch(() => {});
+      }
+      
+      const binaryString = atob(base64Audio);
+      const len = binaryString.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      
+      const validLen = len - (len % 2);
+      const numSamples = validLen / 2;
+      const float32Array = new Float32Array(numSamples);
+      
+      for (let i = 0; i < numSamples; i++) {
+        const low = bytes[i * 2];
+        const high = bytes[i * 2 + 1];
+        let sample = (high << 8) | low;
+        if (sample >= 32768) sample -= 65536;
+        float32Array[i] = sample / 32768;
+      }
+      
+      audioQueueRef.current.push(float32Array);
+      if (!isPlayingRef.current) {
+        playNextChunk();
+      }
+    } catch (err) {
+      console.error('Audio error:', err);
+    }
+  }, [playNextChunk]);
 
   const handleAgentAction = useCallback((message: AgentMessage) => {
     const { action, payload } = message;
+    // Get fresh store on each action - ensures we always have latest methods
+    const store = useAppStore.getState();
 
     switch (action) {
+      case 'ack':
+        return;
+
+      case 'session_started':
+        break;
+
       case 'navigate_screen':
-        navigateScreen(payload as ScreenName);
+        store.navigateScreen(payload as ScreenName);
         break;
 
       case 'add_to_cart': {
@@ -64,54 +112,115 @@ export function useAgentSocket(url?: string) {
           quantity: number;
           customization?: string;
         };
-        addToCart(itemId, quantity, customization);
+        store.addToCart(itemId, quantity, customization);
+        setTimeout(() => useAppStore.getState().selectItem(null), 800);
         break;
       }
 
       case 'remove_from_cart':
-        removeFromCart(payload as string);
+        store.removeFromCart(payload as string);
         break;
 
       case 'highlight_item':
-        highlightItem(payload as string | null);
+        store.highlightItem(payload as string | null);
         break;
 
       case 'select_item':
-        const { getMenuItemById } = require('@/lib/mockData');
         const item = getMenuItemById(payload as string);
-        if (item) selectItem(item);
+        if (item) store.selectItem(item);
         break;
 
       case 'close_detail':
-        selectItem(null);
+        store.selectItem(null);
         break;
 
       case 'kim_state':
-        setKimState(payload as KimState);
+        store.setKimState(payload as KimState);
         break;
 
       case 'kim_speak':
-        setKimMessage(payload as string);
-        setKimState('speaking');
+        break;
+
+      case 'kim_audio':
+        store.setKimState('speaking');
+        playAudio(payload as string);
+        onAiResponseRef.current?.();
         break;
 
       case 'show_payment':
-        showPaymentQR(payload as number);
+        store.showPaymentQR(payload as number);
+        break;
+
+      case 'order_submitted':
+        break;
+
+      case 'session_warning':
+        store.setKimMessage(payload as string || "Still there?");
+        break;
+
+      case 'session_timeout':
+      case 'session_ended':
+        break;
+
+      case 'error':
+        console.error('Backend error:', payload);
         break;
 
       default:
         break;
     }
-  }, [
-    navigateScreen,
-    addToCart,
-    removeFromCart,
-    highlightItem,
-    selectItem,
-    setKimState,
-    setKimMessage,
-    showPaymentQR,
-  ]);
+  }, [playAudio]);
+
+  // Use ref to avoid reconnection when handler changes
+  const handleAgentActionRef = useRef(handleAgentAction);
+  handleAgentActionRef.current = handleAgentAction;
+
+  const connect = useCallback(() => {
+    if (!url) return;
+    
+    // Prevent double connections and connections after cleanup
+    if (cleanupRef.current || connectingRef.current) return;
+    if (wsRef.current?.readyState === WebSocket.OPEN || 
+        wsRef.current?.readyState === WebSocket.CONNECTING) {
+      return;
+    }
+
+    connectingRef.current = true;
+    const ws = new WebSocket(url);
+
+    ws.onopen = () => {
+      if (cleanupRef.current) {
+        ws.close();
+        return;
+      }
+      wsRef.current = ws;
+      connectingRef.current = false;
+      setIsConnected(true);
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const message: AgentMessage = JSON.parse(event.data);
+        handleAgentActionRef.current(message);
+      } catch (err) {
+        console.error('[WS] Error:', err);
+      }
+    };
+
+    ws.onclose = () => {
+      wsRef.current = null;
+      connectingRef.current = false;
+      setIsConnected(false);
+      // Only reconnect if not cleaned up
+      if (!cleanupRef.current) {
+        setTimeout(connect, 3000);
+      }
+    };
+
+    ws.onerror = () => {
+      ws.close();
+    };
+  }, [url]);  // Only depends on url now
 
   const sendMessage = useCallback((data: unknown) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -120,14 +229,22 @@ export function useAgentSocket(url?: string) {
   }, []);
 
   useEffect(() => {
+    cleanupRef.current = false;  // Reset on mount
     connect();
     return () => {
-      wsRef.current?.close();
+      cleanupRef.current = true;  // Mark as cleaned up
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+      }
     };
   }, [connect]);
 
   return {
     sendMessage,
-    isConnected: wsRef.current?.readyState === WebSocket.OPEN,
+    isConnected,
   };
 }

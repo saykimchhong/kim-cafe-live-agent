@@ -11,12 +11,14 @@ const initialState = {
   kimMessage: '',
   paymentAmount: 0,
   isPaymentSuccess: false,
+  sendMessage: null as ((data: unknown) => void) | null,
 };
 
 export const useAppStore = create<AppState>((set, get) => ({
   ...initialState,
 
   navigateScreen: (screen: ScreenName) => {
+    console.log('[store] navigateScreen ->', screen);
     set({ screen, selectedItem: null, highlightedItem: null });
   },
 
@@ -64,10 +66,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   highlightItem: (itemId: string | null) => {
+    console.log('[store] highlightItem ->', itemId);
     set({ highlightedItem: itemId });
   },
 
   selectItem: (item: MenuItem | null) => {
+    console.log('[store] selectItem ->', item ? item.id : null);
     set({ selectedItem: item });
   },
 
@@ -88,6 +92,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   resetSession: () => {
-    set({ ...initialState });
+    set({ ...initialState, sendMessage: get().sendMessage });
+  },
+
+  setSendMessage: (sendMessage: (data: unknown) => void) => {
+    set({ sendMessage });
   },
 }));

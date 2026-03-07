@@ -42,6 +42,7 @@ export interface AppState {
   kimMessage: string;
   paymentAmount: number;
   isPaymentSuccess: boolean;
+  sendMessage: ((data: unknown) => void) | null;
 
   navigateScreen: (screen: ScreenName) => void;
   addToCart: (itemId: string, quantity: number, customization?: string) => void;
@@ -55,4 +56,5 @@ export interface AppState {
   showPaymentQR: (amount: number) => void;
   completePayment: () => void;
   resetSession: () => void;
+  setSendMessage: (sendMessage: (data: unknown) => void) => void;
 }

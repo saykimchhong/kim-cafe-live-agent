@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Plus, Minus, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Plus, Minus, X, Check, Sparkles } from 'lucide-react';
 import { MenuItem } from '@/lib/types';
 import { formatPrice, cn } from '@/lib/utils';
 import { useAppStore } from '@/stores/useAppStore';
@@ -16,11 +16,16 @@ interface ItemDetailProps {
 export function ItemDetail({ item, onClose }: ItemDetailProps) {
   const [quantity, setQuantity] = useState(1);
   const [selectedCustomization, setSelectedCustomization] = useState<string | undefined>();
+  const [isAdding, setIsAdding] = useState(false);
   const { addToCart } = useAppStore();
 
   const handleAddToCart = () => {
+    setIsAdding(true);
     addToCart(item.id, quantity, selectedCustomization);
-    onClose();
+    // Show success animation then close
+    setTimeout(() => {
+      onClose();
+    }, 600);
   };
 
   const incrementQuantity = () => setQuantity((q) => q + 1);
@@ -31,23 +36,68 @@ export function ItemDetail({ item, onClose }: ItemDetailProps) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
       className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
       onClick={onClose}
     >
       <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.9, opacity: 0 }}
+        initial={{ scale: 0.9, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.9, opacity: 0, y: 20 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 25 }}
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl"
+        className="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl relative"
       >
+        {/* Success overlay */}
+        <AnimatePresence>
+          {isAdding && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-green-500/90 z-20 flex flex-col items-center justify-center"
+            >
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+              >
+                <Check className="w-20 h-20 text-white" strokeWidth={3} />
+              </motion.div>
+              <motion.p
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="text-white text-xl font-bold mt-4"
+              >
+                Added to Cart!
+              </motion.p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <div className="relative aspect-video bg-gradient-to-br from-primary-100 to-primary-200 flex items-center justify-center">
-          <span className="text-8xl">
+          {/* AI Selection Badge - positioned in image area */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8, y: -10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ delay: 0.3, type: 'spring', stiffness: 300 }}
+            className="absolute top-4 left-4 z-10 bg-gradient-to-r from-amber-500 to-orange-500 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 shadow-xl"
+          >
+            <Sparkles className="w-5 h-5" />
+            AI Selected
+          </motion.div>
+          <motion.span 
+            className="text-8xl"
+            initial={{ scale: 0.8 }}
+            animate={{ scale: 1 }}
+            transition={{ type: 'spring', stiffness: 200 }}
+          >
             {item.category === 'coffee' && '☕'}
             {item.category === 'bakery' && '🥐'}
             {item.category === 'cake' && '🍰'}
             {item.category === 'food' && '🥗'}
-          </span>
+          </motion.span>
           <button
             onClick={onClose}
             className="absolute top-4 right-4 p-2 bg-white/80 rounded-full hover:bg-white transition-colors"

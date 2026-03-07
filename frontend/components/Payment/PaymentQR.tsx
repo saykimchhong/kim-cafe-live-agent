@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { CheckCircle } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
@@ -13,21 +13,56 @@ interface PaymentQRProps {
 
 export function PaymentQR({ amount, onPaymentComplete }: PaymentQRProps) {
   const [countdown, setCountdown] = useState(10);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const hasCompletedRef = useRef(false);
+  
+  // Use refs to avoid effect re-running
+  const onPaymentCompleteRef = useRef(onPaymentComplete);
+  onPaymentCompleteRef.current = onPaymentComplete;
 
   useEffect(() => {
-    const timer = setInterval(() => {
+    // Start countdown timer
+    timerRef.current = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
-          clearInterval(timer);
-          onPaymentComplete();
+          if (timerRef.current) {
+            clearInterval(timerRef.current);
+            timerRef.current = null;
+          }
+          
+          // Only complete once
+          if (!hasCompletedRef.current) {
+            hasCompletedRef.current = true;
+            
+            // Send payment_complete message to backend
+            const sendMessage = useAppStore.getState().sendMessage;
+            if (sendMessage) {
+              sendMessage({ type: 'payment_complete' });
+            }
+            
+            // Trigger completion callback
+            setTimeout(() => {
+              onPaymentCompleteRef.current();
+            }, 100);
+          }
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
 
-    return () => clearInterval(timer);
-  }, [onPaymentComplete]);
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, []); // Empty deps - run once on mount
+
+  // Generate stable QR pattern once
+  const qrPattern = useMemo(() => {
+    return Array.from({ length: 25 }).map(() => Math.random() > 0.3);
+  }, []);
 
   return (
     <motion.div
@@ -38,12 +73,10 @@ export function PaymentQR({ amount, onPaymentComplete }: PaymentQRProps) {
       <div className="bg-white p-6 rounded-2xl shadow-lg">
         <div className="w-48 h-48 bg-surface-100 rounded-xl flex items-center justify-center mb-4">
           <div className="grid grid-cols-5 gap-1">
-            {Array.from({ length: 25 }).map((_, i) => (
+            {qrPattern.map((isDark, i) => (
               <div
                 key={i}
-                className={`w-3 h-3 ${
-                  Math.random() > 0.3 ? 'bg-surface-800' : 'bg-white'
-                }`}
+                className={`w-3 h-3 ${isDark ? 'bg-surface-800' : 'bg-white'}`}
               />
             ))}
           </div>

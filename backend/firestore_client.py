@@ -47,25 +47,35 @@ class FirestoreClient:
             "data": data,
         }
         
-        doc_ref = self.db.collection(self.sessions_collection).document(session_id)
-        doc_ref.update({"events": firestore.ArrayUnion([event])})
+        try:
+            doc_ref = self.db.collection(self.sessions_collection).document(session_id)
+            # Use set with merge to avoid race condition with create_session
+            doc_ref.set({"events": firestore.ArrayUnion([event])}, merge=True)
+        except Exception:
+            pass  # Silently ignore - logging is best-effort
 
     async def update_session(self, session_id: str, updates: dict) -> None:
         if not self.db:
             return
         
-        doc_ref = self.db.collection(self.sessions_collection).document(session_id)
-        doc_ref.update(updates)
+        try:
+            doc_ref = self.db.collection(self.sessions_collection).document(session_id)
+            doc_ref.set(updates, merge=True)
+        except Exception:
+            pass
 
     async def end_session(self, session_id: str) -> None:
         if not self.db:
             return
         
-        doc_ref = self.db.collection(self.sessions_collection).document(session_id)
-        doc_ref.update({
-            "endedAt": datetime.utcnow(),
-            "status": "completed",
-        })
+        try:
+            doc_ref = self.db.collection(self.sessions_collection).document(session_id)
+            doc_ref.set({
+                "endedAt": datetime.utcnow(),
+                "status": "completed",
+            }, merge=True)
+        except Exception:
+            pass
 
     async def create_order(
         self,

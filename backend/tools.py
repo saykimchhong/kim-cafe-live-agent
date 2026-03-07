@@ -147,6 +147,14 @@ TOOL_DEFINITIONS = [
                     required=["customer_name", "customer_appearance"],
                 ),
             ),
+            types.FunctionDeclaration(
+                name="get_cart_summary",
+                description="Get the current cart contents and total. Use this to verify what items have been added before going to payment.",
+                parameters=types.Schema(
+                    type=types.Type.OBJECT,
+                    properties={},
+                ),
+            ),
         ]
     )
 ]

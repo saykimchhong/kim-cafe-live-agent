@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Home, ShoppingCart, Video, Mic, MicOff, VideoOff } from 'lucide-react';
+import { Home, ShoppingCart, Video, Mic, MicOff, VideoOff, Wifi, WifiOff } from 'lucide-react';
 import { useAppStore } from '@/stores/useAppStore';
 import { KimIdle, KimActive } from '@/components/Kim';
 import { CategoryNav, ItemDetail } from '@/components/Menu';
@@ -18,10 +18,19 @@ import {
   PaymentScreen,
 } from '@/components/screens';
 import { cn } from '@/lib/utils';
-import { useMediaStream } from '@/hooks';
+import { useMediaStream, useAgentSocket } from '@/hooks';
+
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000/ws';
 
 export default function KioskPage() {
   const [isStarted, setIsStarted] = useState(false);
+  const [videoEnabled, setVideoEnabled] = useState(true); 
+  const frameIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const videoTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const wasSpeakingRef = useRef<boolean>(false);
+  const waitingForResponseRef = useRef<boolean>(false); 
+  const hasSpokenOnceRef = useRef<boolean>(false);
   
   const {
     screen,
@@ -31,16 +40,86 @@ export default function KioskPage() {
     navigateScreen,
     setKimState,
     setKimMessage,
+    setSendMessage,
   } = useAppStore();
+
+  // Callback when AI responds - reset waiting flag
+  const handleAiResponse = useCallback(() => {
+    waitingForResponseRef.current = false;
+  }, []);
+
+  const { sendMessage, isConnected } = useAgentSocket(WS_URL, handleAiResponse);
+
+  // Set sendMessage in store so other components can use it
+  useEffect(() => {
+    if (sendMessage) {
+      setSendMessage(sendMessage);
+    }
+  }, [sendMessage, setSendMessage]);
 
   const {
     start: startMedia,
+    stop: stopMedia,
     setVideoElement,
     setCanvasElement,
     getFrequencyData,
+    captureFrame,
+    onAudioData,
+    setVoiceThreshold,
     isActive: isMediaActive,
+    isSpeaking,
     error: mediaError,
   } = useMediaStream();
+
+  // Send ALL audio data to backend for server-side VAD
+  useEffect(() => {
+    if (!isMediaActive) return;
+
+    onAudioData((pcmData: Int16Array) => {
+      const bytes = new Uint8Array(pcmData.buffer);
+      let binary = '';
+      for (let i = 0; i < bytes.length; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      sendMessage({ type: 'audio', data: btoa(binary) });
+    });
+    
+    setVoiceThreshold(0.015);
+  }, [isMediaActive, onAudioData, sendMessage, setVoiceThreshold]);
+
+  // Server-side VAD handles turn detection automatically
+  // No need for client-side silence detection - Gemini detects when user stops speaking
+
+  // Send video frames at 1fps - only when videoEnabled
+  useEffect(() => {
+    if (!isMediaActive || !videoEnabled) {
+      if (frameIntervalRef.current) {
+        clearInterval(frameIntervalRef.current);
+        frameIntervalRef.current = null;
+      }
+      return;
+    }
+
+    frameIntervalRef.current = setInterval(() => {
+      const frame = captureFrame();
+      if (frame) {
+        sendMessage({ type: 'video', data: frame });
+      }
+    }, 1000);
+
+    return () => {
+      if (frameIntervalRef.current) {
+        clearInterval(frameIntervalRef.current);
+      }
+    };
+  }, [isMediaActive, videoEnabled, captureFrame, sendMessage]);
+
+  // Enable video during payment screen
+  useEffect(() => {
+    if (screen === 'payment') {
+      setVideoEnabled(true);
+    }
+  }, [screen]);
 
   const videoRefCallback = useCallback((node: HTMLVideoElement | null) => {
     if (node) {
@@ -56,14 +135,37 @@ export default function KioskPage() {
 
   const handleStart = async () => {
     setIsStarted(true);
+    setVideoEnabled(true);
     setTimeout(async () => {
       await startMedia();
-      setKimState('speaking');
-      setKimMessage('Welcome! What a lovely day. What can I get for you today?');
-      setTimeout(() => {
-        setKimState('listening');
+      setKimState('listening');
+      // No initial text prompt - let AI greet naturally when customer speaks
+      // Video frames will be sent for first 3s for appearance recognition
+      
+      // Disable video after 3 seconds (customer appearance captured)
+      videoTimeoutRef.current = setTimeout(() => {
+        setVideoEnabled(false);
       }, 3000);
     }, 100);
+  };
+
+  const handleEndSession = () => {
+    sendMessage({ type: 'end_session' });
+    stopMedia();
+    setIsStarted(false);
+    setVideoEnabled(false);
+    // Reset all refs for fresh session
+    wasSpeakingRef.current = false;
+    waitingForResponseRef.current = false;
+    hasSpokenOnceRef.current = false;
+    if (videoTimeoutRef.current) {
+      clearTimeout(videoTimeoutRef.current);
+    }
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+    navigateScreen('home');
   };
 
   if (!isStarted) {
@@ -113,7 +215,14 @@ export default function KioskPage() {
             <span className="font-medium">Menu</span>
           </button>
 
-          <h1 className="text-xl font-bold text-surface-800">Kim Cafe</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold text-surface-800">Lumina Cafe</h1>
+            {isConnected ? (
+              <Wifi className="w-4 h-4 text-green-500" />
+            ) : (
+              <WifiOff className="w-4 h-4 text-red-500" />
+            )}
+          </div>
 
           <button
             onClick={() => navigateScreen('cart')}
@@ -156,31 +265,39 @@ export default function KioskPage() {
         animate={{ opacity: 1, scale: 1 }}
         className="fixed top-20 right-4 z-30"
       >
-        <div className="relative rounded-2xl overflow-hidden shadow-lg bg-surface-900">
-          <video
-            ref={videoRefCallback}
-            autoPlay
-            playsInline
-            muted
-            className="w-32 h-32 object-cover"
-          />
-          <canvas ref={canvasRefCallback} className="hidden" />
-          
-          <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between">
-            <div className="flex items-center gap-1.5 px-2 py-1 bg-black/60 rounded-full">
-              {isMediaActive ? (
-                <Video className="w-3 h-3 text-green-400" />
-              ) : (
-                <VideoOff className="w-3 h-3 text-red-400" />
-              )}
-              {isMediaActive ? (
-                <Mic className="w-3 h-3 text-green-400" />
-              ) : (
-                <MicOff className="w-3 h-3 text-red-400" />
-              )}
-            </div>
+        {/* Video capture - hidden from user but still capturing frames for AI */}
+        <video
+          ref={videoRefCallback}
+          autoPlay
+          playsInline
+          muted
+          className="hidden"
+        />
+        <canvas ref={canvasRefCallback} className="hidden" />
+        
+        {/* Status indicators and audio visualization */}
+        <div className="rounded-2xl overflow-hidden shadow-lg bg-surface-900 p-3">
+          <div className="flex items-center gap-2 mb-2">
+            {isMediaActive ? (
+              <Video className="w-4 h-4 text-green-400" />
+            ) : (
+              <VideoOff className="w-4 h-4 text-red-400" />
+            )}
+            {isMediaActive ? (
+              <Mic className={cn(
+                "w-4 h-4 transition-colors",
+                isSpeaking ? "text-blue-400 animate-pulse" : "text-green-400"
+              )} />
+            ) : (
+              <MicOff className="w-4 h-4 text-red-400" />
+            )}
+            {isSpeaking && (
+              <span className="text-xs text-blue-400 font-medium animate-pulse">
+                Listening...
+              </span>
+            )}
             {mediaError && (
-              <span className="text-xs text-red-400 bg-black/60 px-2 py-1 rounded-full">
+              <span className="text-xs text-red-400">
                 {mediaError}
               </span>
             )}
@@ -193,6 +310,12 @@ export default function KioskPage() {
             barCount={16}
           />
         </div>
+        <button
+          onClick={handleEndSession}
+          className="mt-2 w-full py-2 px-4 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-xl transition-colors"
+        >
+          End Session
+        </button>
       </motion.div>
 
       <AnimatePresence>
