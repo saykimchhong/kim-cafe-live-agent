@@ -1,40 +1,18 @@
 'use client';
 
+import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { Coffee, Croissant, Cake, UtensilsCrossed } from 'lucide-react';
 import { useAppStore } from '@/stores/useAppStore';
 import { ScreenName } from '@/lib/types';
+import { categories } from '@/lib/websiteData';
 
-const categories = [
-  {
-    id: 'coffee' as ScreenName,
-    name: 'Coffee',
-    icon: Coffee,
-    color: 'from-amber-400 to-amber-600',
-    description: 'Freshly brewed specialty coffee',
-  },
-  {
-    id: 'bakery' as ScreenName,
-    name: 'Bakery',
-    icon: Croissant,
-    color: 'from-orange-400 to-orange-600',
-    description: 'Baked fresh every morning',
-  },
-  {
-    id: 'cake' as ScreenName,
-    name: 'Cakes',
-    icon: Cake,
-    color: 'from-pink-400 to-pink-600',
-    description: 'Sweet treats and desserts',
-  },
-  {
-    id: 'food' as ScreenName,
-    name: 'Food',
-    icon: UtensilsCrossed,
-    color: 'from-green-400 to-green-600',
-    description: 'Light meals and salads',
-  },
-];
+const iconMap = {
+  Coffee,
+  Croissant,
+  Cake,
+  UtensilsCrossed,
+};
 
 export function HomeScreen() {
   const { navigateScreen } = useAppStore();
@@ -51,7 +29,7 @@ export function HomeScreen() {
 
       <div className="grid grid-cols-2 gap-4">
         {categories.map((category, index) => {
-          const Icon = category.icon;
+          const Icon = iconMap[category.icon as keyof typeof iconMap];
           return (
             <motion.button
               key={category.id}
@@ -60,13 +38,29 @@ export function HomeScreen() {
               transition={{ delay: index * 0.1 }}
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.97 }}
-              onClick={() => navigateScreen(category.id)}
-              className={`bg-gradient-to-br ${category.color} rounded-2xl p-6 text-white text-left shadow-lg aspect-square flex flex-col justify-between`}
+              onClick={() => navigateScreen(category.id as ScreenName)}
+              className="relative rounded-2xl overflow-hidden text-white text-left shadow-lg aspect-square"
             >
-              <Icon className="w-10 h-10" />
-              <div>
-                <h3 className="text-xl font-bold">{category.name}</h3>
-                <p className="text-sm opacity-90 mt-1">{category.description}</p>
+              {/* Background Image */}
+              <Image
+                src={category.thumbnail}
+                alt={category.name}
+                fill
+                sizes="(max-width: 768px) 50vw, 33vw"
+                className="object-cover"
+                priority
+              />
+              
+              {/* Subtle dark gradient for text readability */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+              
+              {/* Content */}
+              <div className="relative z-10 p-6 flex flex-col justify-between h-full">
+                <Icon className="w-10 h-10 drop-shadow-lg" />
+                <div className={`bg-gradient-to-br ${category.color} opacity-90 rounded-xl px-4 py-3`}>
+                  <h3 className="text-xl font-bold">{category.name}</h3>
+                  <p className="text-sm opacity-90 mt-1">{category.description}</p>
+                </div>
               </div>
             </motion.button>
           );

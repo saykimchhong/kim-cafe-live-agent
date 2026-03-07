@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Minus, X, Check, Sparkles } from 'lucide-react';
 import { MenuItem } from '@/lib/types';
@@ -17,7 +18,8 @@ export function ItemDetail({ item, onClose }: ItemDetailProps) {
   const [quantity, setQuantity] = useState(1);
   const [selectedCustomization, setSelectedCustomization] = useState<string | undefined>();
   const [isAdding, setIsAdding] = useState(false);
-  const { addToCart } = useAppStore();
+  const { addToCart, shouldShowAIBadge } = useAppStore();
+  const showBadge = shouldShowAIBadge(item.id);
 
   const handleAddToCart = () => {
     setIsAdding(true);
@@ -76,31 +78,37 @@ export function ItemDetail({ item, onClose }: ItemDetailProps) {
           )}
         </AnimatePresence>
 
-        <div className="relative aspect-video bg-gradient-to-br from-primary-100 to-primary-200 flex items-center justify-center">
+        <div className="relative aspect-video bg-surface-100 overflow-hidden">
+          <Image
+            src={item.image}
+            alt={item.name}
+            fill
+            sizes="(max-width: 768px) 100vw, 50vw"
+            className="object-cover"
+            priority
+          />
+          {/* Gradient overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+          
           {/* AI Selection Badge - positioned in image area */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8, y: -10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={{ delay: 0.3, type: 'spring', stiffness: 300 }}
-            className="absolute top-4 left-4 z-10 bg-gradient-to-r from-amber-500 to-orange-500 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 shadow-xl"
-          >
-            <Sparkles className="w-5 h-5" />
-            AI Selected
-          </motion.div>
-          <motion.span 
-            className="text-8xl"
-            initial={{ scale: 0.8 }}
-            animate={{ scale: 1 }}
-            transition={{ type: 'spring', stiffness: 200 }}
-          >
-            {item.category === 'coffee' && '☕'}
-            {item.category === 'bakery' && '🥐'}
-            {item.category === 'cake' && '🍰'}
-            {item.category === 'food' && '🥗'}
-          </motion.span>
+          <AnimatePresence>
+            {showBadge && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8, y: -10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.8, y: -10 }}
+                transition={{ type: 'spring', stiffness: 300 }}
+                className="absolute top-4 left-4 z-10 bg-gradient-to-r from-amber-500 to-orange-500 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 shadow-xl"
+              >
+                <Sparkles className="w-5 h-5" />
+                AI Selected
+              </motion.div>
+            )}
+          </AnimatePresence>
+          
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 p-2 bg-white/80 rounded-full hover:bg-white transition-colors"
+            className="absolute top-4 right-4 p-2 bg-white/90 rounded-full hover:bg-white transition-colors z-10"
           >
             <X className="w-5 h-5 text-surface-600" />
           </button>

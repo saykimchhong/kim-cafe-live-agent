@@ -3,25 +3,21 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { useAppStore } from '@/stores/useAppStore';
 import { ScreenName, KimState } from '@/lib/types';
-import { getMenuItemById } from '@/lib/mockData';
+import { getMenuItemById } from '@/lib/websiteData';
 
 interface AgentMessage {
   action: string;
   payload: unknown;
 }
 
-export function useAgentSocket(url?: string, onAiResponse?: () => void) {
+export function useAgentSocket(url?: string) {
   const wsRef = useRef<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioQueueRef = useRef<Float32Array[]>([]);
   const isPlayingRef = useRef(false);
-  const onAiResponseRef = useRef(onAiResponse);
-  const cleanupRef = useRef(false);  // Track if hook is unmounted
-  const connectingRef = useRef(false);  // Prevent concurrent connections
-  
-  // Keep ref updated
-  onAiResponseRef.current = onAiResponse;
+  const cleanupRef = useRef(false);
+  const connectingRef = useRef(false);
 
   // Play queued audio chunks
   const playNextChunk = useCallback(() => {
@@ -144,7 +140,6 @@ export function useAgentSocket(url?: string, onAiResponse?: () => void) {
       case 'kim_audio':
         store.setKimState('speaking');
         playAudio(payload as string);
-        onAiResponseRef.current?.();
         break;
 
       case 'show_payment':

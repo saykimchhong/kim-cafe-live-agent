@@ -100,14 +100,11 @@ async def handle_tool_call(
         item = get_menu_item_by_id(item_id)
         if item:
             frontend_action["payload"] = item_id
-            result["item"] = item
             result["item_name"] = item["name"]
             result["price"] = item["price"]
-            result["description"] = item["description"]
-            result["customizations"] = item.get("customizations", [])
-            if result["customizations"]:
-                result["ask_customer"] = f"Available options: {', '.join(result['customizations'])}. Ask if they want any of these."
-            print(f"Showing item: {result['item_name']} (${result['price']}) with {len(result['customizations'])} customization options")
+            if item.get("customizations"):
+                result["has_customizations"] = True
+            print(f"Showing item: {result['item_name']} (${result['price']})")
         else:
             result["success"] = False
             result["error"] = f"Item '{item_id}' not found. Check exact item_id from menu."
@@ -137,18 +134,10 @@ async def handle_tool_call(
                 "quantity": quantity,
                 "customization": customization,
             }
-            result["cart_item"] = cart_item
             result["item_name"] = menu_item["name"]
-            result["item_price"] = item_price
-            result["line_total"] = round(item_price * quantity, 2)
+            result["total"] = session.get_total({item["id"]: item for item in MENU_ITEMS})
             
-            # Calculate current cart total
-            menu_lookup = {item["id"]: item for item in MENU_ITEMS}
-            cart_total = session.get_total(menu_lookup)
-            result["cart_total"] = cart_total
-            result["cart_item_count"] = len(session.cart)
-            
-            print(f"Added to cart: {result['item_name']} x{quantity} = ${result['line_total']}, Cart total: ${cart_total}")
+            print(f"Added to cart: {result['item_name']} x{quantity}, total: ${result['total']}")
     
     elif tool_name == "remove_from_cart":
         item_id = tool_args.get("item_id")
@@ -294,7 +283,8 @@ async def websocket_endpoint(websocket: WebSocket):
     
     gemini = GeminiLiveClient()
     receive_task = None
-    greeting_sent = False  # Track if we've triggered the greeting
+    greeting_sent = False
+    last_warning_time = 0.0
     
     try:
         await gemini.connect()
@@ -321,17 +311,22 @@ async def websocket_endpoint(websocket: WebSocket):
                         await websocket.send_json({"action": "kim_audio", "payload": response["data"]})
                     
                     elif response["type"] == "tool_call":
-                        # Process tool immediately and send response
+                        from diagnostic_wrapper import diagnostic
+                        diagnostic.mark("tool_call_received", {"tool": response["data"]["name"]})
                         tool_data = response["data"]
                         result = await handle_tool_call(session, tool_data["name"], tool_data["args"], websocket)
+                        diagnostic.mark("tool_executed")
                         await gemini.send_tool_response([{
                             "name": tool_data["name"],
                             "id": tool_data.get("id"),
                             "response": result,
                         }])
+                        diagnostic.mark("tool_response_sent")
                     
                     elif response["type"] == "turn_complete":
-                        # Only send listening state if there was audio (avoid spam)
+                        from diagnostic_wrapper import diagnostic
+                        diagnostic.print_summary()
+                        diagnostic.reset()
                         if had_audio:
                             await websocket.send_json({"action": "kim_state", "payload": "listening"})
                             had_audio = False
@@ -357,7 +352,8 @@ async def websocket_endpoint(websocket: WebSocket):
                         "payload": None,
                     })
                     break
-                elif elapsed > 60 and int(elapsed) % 30 == 0:  # Warn once every 30 seconds
+                elif elapsed > 60 and (elapsed - last_warning_time) >= 30:
+                    last_warning_time = elapsed
                     print(f"[Warning] Session inactive for {elapsed:.0f}s", flush=True)
                     await websocket.send_json({
                         "action": "session_warning",
@@ -379,12 +375,17 @@ async def websocket_endpoint(websocket: WebSocket):
             
             elif msg_type == "video":
                 frame_b64 = data.get("data", "")
-                await gemini.send_video_frame(frame_b64)
-                
-                # Trigger greeting after first video frame (so AI can see customer)
-                if not greeting_sent:
-                    greeting_sent = True
-                    await gemini.send_text("A new customer just approached. Greet them warmly!")
+                try:
+                    await gemini.send_video_frame(frame_b64)
+                    if not greeting_sent:
+                        greeting_sent = True
+                        await asyncio.sleep(0.5)
+                        await gemini.send_text("A new customer just approached. Greet them warmly!")
+                except Exception as e:
+                    print(f"[Error] Video frame failed: {e}", flush=True)
+                    if not greeting_sent:
+                        greeting_sent = True
+                        await gemini.send_text("A new customer just approached. Greet them warmly!")
             
             elif msg_type == "text":
                 text = data.get("data", "")

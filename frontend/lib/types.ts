@@ -43,6 +43,8 @@ export interface AppState {
   paymentAmount: number;
   isPaymentSuccess: boolean;
   sendMessage: ((data: unknown) => void) | null;
+  aiHighlightedItems: Set<string>;
+  manuallySelectedItems: Set<string>;
 
   navigateScreen: (screen: ScreenName) => void;
   addToCart: (itemId: string, quantity: number, customization?: string) => void;
@@ -50,11 +52,12 @@ export interface AppState {
   updateCartQuantity: (itemId: string, quantity: number) => void;
   clearCart: () => void;
   highlightItem: (itemId: string | null) => void;
-  selectItem: (item: MenuItem | null) => void;
+  selectItem: (item: MenuItem | null, isManual?: boolean) => void;
   setKimState: (state: KimState) => void;
   setKimMessage: (message: string) => void;
   showPaymentQR: (amount: number) => void;
   completePayment: () => void;
   resetSession: () => void;
   setSendMessage: (sendMessage: (data: unknown) => void) => void;
+  shouldShowAIBadge: (itemId: string) => boolean;
 }

@@ -167,7 +167,7 @@ export function useMediaStream(config: MediaStreamConfig = defaultConfig) {
 
     ctx.drawImage(video, 0, 0, videoConfig.width!, videoConfig.height!);
 
-    return canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+    return canvas.toDataURL('image/jpeg', 0.5).split(',')[1];
   }, [isActive, config.video]);
 
   const getFrequencyData = useCallback((): Uint8Array | null => {

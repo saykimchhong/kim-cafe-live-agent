@@ -7,7 +7,7 @@ export const menuItems: MenuItem[] = [
     category: 'coffee',
     price: 3.50,
     description: 'Rich and bold single shot espresso with a perfect crema.',
-    image: '/images/espresso.jpg',
+    image: '/images/coffee/coffee-espresso.jpg',
     customizations: ['Extra Shot', 'Decaf'],
   },
   {
@@ -16,7 +16,7 @@ export const menuItems: MenuItem[] = [
     category: 'coffee',
     price: 4.50,
     description: 'Smooth espresso with steamed milk and light foam.',
-    image: '/images/latte.jpg',
+    image: '/images/coffee/coffee-latte.jpg',
     customizations: ['Extra Shot', 'Oat Milk', 'Almond Milk', 'Vanilla Syrup'],
   },
   {
@@ -25,7 +25,7 @@ export const menuItems: MenuItem[] = [
     category: 'coffee',
     price: 4.50,
     description: 'Classic Italian coffee with equal parts espresso, steamed milk, and foam.',
-    image: '/images/cappuccino.jpg',
+    image: '/images/coffee/coffee-cappuccino.jpg',
     customizations: ['Extra Shot', 'Oat Milk', 'Cinnamon Dust'],
   },
   {
@@ -34,7 +34,7 @@ export const menuItems: MenuItem[] = [
     category: 'coffee',
     price: 3.75,
     description: 'Espresso diluted with hot water for a smooth, rich flavor.',
-    image: '/images/americano.jpg',
+    image: '/images/coffee/coffee-americano.png',
     customizations: ['Extra Shot', 'Iced'],
   },
   {
@@ -43,7 +43,7 @@ export const menuItems: MenuItem[] = [
     category: 'coffee',
     price: 5.25,
     description: 'Espresso with chocolate and steamed milk topped with whipped cream.',
-    image: '/images/mocha.jpg',
+    image: '/images/coffee/coffee-mocha.png',
     customizations: ['Extra Shot', 'Oat Milk', 'No Whip'],
   },
 
@@ -53,7 +53,7 @@ export const menuItems: MenuItem[] = [
     category: 'bakery',
     price: 3.25,
     description: 'Flaky, buttery French pastry baked fresh every morning.',
-    image: '/images/croissant.jpg',
+    image: '/images/bakery/bakery-croissant.png',
     customizations: ['Warmed'],
   },
   {
@@ -62,7 +62,7 @@ export const menuItems: MenuItem[] = [
     category: 'bakery',
     price: 3.50,
     description: 'Moist muffin loaded with fresh blueberries.',
-    image: '/images/muffin.jpg',
+    image: '/images/bakery/bakery-muffin.png',
     customizations: ['Warmed'],
   },
   {
@@ -71,7 +71,7 @@ export const menuItems: MenuItem[] = [
     category: 'bakery',
     price: 3.75,
     description: 'Sweet pastry filled with spiced apple compote and drizzled with icing.',
-    image: '/images/danish.jpg',
+    image: '/images/bakery/bakery-danish.png',
     customizations: ['Warmed'],
   },
   {
@@ -80,7 +80,7 @@ export const menuItems: MenuItem[] = [
     category: 'bakery',
     price: 2.75,
     description: 'Classic bagel with sesame, poppy, onion, and garlic.',
-    image: '/images/bagel.jpg',
+    image: '/images/bakery/bakery-bagel.png',
     customizations: ['Cream Cheese', 'Butter', 'Toasted'],
   },
   {
@@ -89,7 +89,7 @@ export const menuItems: MenuItem[] = [
     category: 'bakery',
     price: 3.50,
     description: 'Tender British-style scone with sweet cranberries.',
-    image: '/images/scone.jpg',
+    image: '/images/bakery/bakery-scone.png',
     customizations: ['Warmed', 'Clotted Cream'],
   },
 
@@ -99,7 +99,7 @@ export const menuItems: MenuItem[] = [
     category: 'cake',
     price: 6.50,
     description: 'Creamy classic cheesecake with graham cracker crust.',
-    image: '/images/cheesecake.jpg',
+    image: '/images/cake/cake-cheesecake.png',
     customizations: ['Strawberry Topping', 'Chocolate Drizzle'],
   },
   {
@@ -108,7 +108,7 @@ export const menuItems: MenuItem[] = [
     category: 'cake',
     price: 7.00,
     description: 'Italian dessert with espresso-soaked ladyfingers and mascarpone cream.',
-    image: '/images/tiramisu.jpg',
+    image: '/images/cake/cake-tiramisu.png',
     customizations: [],
   },
   {
@@ -117,7 +117,7 @@ export const menuItems: MenuItem[] = [
     category: 'cake',
     price: 4.50,
     description: 'Dense chocolate brownie with a crisp top and gooey center.',
-    image: '/images/brownie.jpg',
+    image: '/images/cake/cake-brownie.png',
     customizations: ['Warmed', 'Ice Cream'],
   },
   {
@@ -126,7 +126,7 @@ export const menuItems: MenuItem[] = [
     category: 'cake',
     price: 5.75,
     description: 'Spiced carrot cake layered with cream cheese frosting.',
-    image: '/images/carrot-cake.jpg',
+    image: '/images/cake/cake-carrot.png',
     customizations: [],
   },
   {
@@ -135,7 +135,7 @@ export const menuItems: MenuItem[] = [
     category: 'cake',
     price: 4.75,
     description: 'Choux pastry filled with vanilla cream and topped with chocolate.',
-    image: '/images/eclair.jpg',
+    image: '/images/cake/cake-eclair.png',
     customizations: [],
   },
 
@@ -145,7 +145,7 @@ export const menuItems: MenuItem[] = [
     category: 'food',
     price: 9.50,
     description: 'Triple-decker sandwich with turkey, bacon, lettuce, and tomato.',
-    image: '/images/sandwich.jpg',
+    image: '/images/food/food-sandwich.png',
     customizations: ['No Mayo', 'Gluten-Free Bread'],
   },
   {
@@ -154,7 +154,7 @@ export const menuItems: MenuItem[] = [
     category: 'food',
     price: 8.50,
     description: 'Crisp romaine with parmesan, croutons, and house Caesar dressing.',
-    image: '/images/salad.jpg',
+    image: '/images/food/food-salad.png',
     customizations: ['Add Chicken', 'Dressing on Side'],
   },
   {
@@ -163,7 +163,7 @@ export const menuItems: MenuItem[] = [
     category: 'food',
     price: 7.25,
     description: 'French-style quiche with fresh spinach and gruyère cheese.',
-    image: '/images/quiche.jpg',
+    image: '/images/food/food-quiche.png',
     customizations: ['Side Salad'],
   },
   {
@@ -172,7 +172,7 @@ export const menuItems: MenuItem[] = [
     category: 'food',
     price: 5.50,
     description: 'Creamy tomato soup with fresh basil and a hint of garlic.',
-    image: '/images/soup.jpg',
+    image: '/images/food/food-soup.png',
     customizations: ['Bread Bowl', 'Crackers'],
   },
   {
@@ -181,7 +181,7 @@ export const menuItems: MenuItem[] = [
     category: 'food',
     price: 8.75,
     description: 'Grilled chicken with romaine and Caesar dressing in a flour tortilla.',
-    image: '/images/wrap.jpg',
+    image: '/images/food/food-wrap.png',
     customizations: ['Gluten-Free Wrap', 'Extra Dressing'],
   },
 ];
@@ -195,8 +195,36 @@ export const getMenuItemById = (id: string): MenuItem | undefined => {
 };
 
 export const categories = [
-  { id: 'coffee', name: 'Coffee', icon: 'Coffee' },
-  { id: 'bakery', name: 'Bakery', icon: 'Croissant' },
-  { id: 'cake', name: 'Cake', icon: 'Cake' },
-  { id: 'food', name: 'Food', icon: 'UtensilsCrossed' },
+  { 
+    id: 'coffee', 
+    name: 'Coffee', 
+    icon: 'Coffee',
+    thumbnail: '/images/menu_thumbnail/coffee.png',
+    color: 'from-amber-400 to-amber-600',
+    description: 'Freshly brewed specialty coffee',
+  },
+  { 
+    id: 'bakery', 
+    name: 'Bakery', 
+    icon: 'Croissant',
+    thumbnail: '/images/menu_thumbnail/bakery.png',
+    color: 'from-orange-400 to-orange-600',
+    description: 'Baked fresh every morning',
+  },
+  { 
+    id: 'cake', 
+    name: 'Cake', 
+    icon: 'Cake',
+    thumbnail: '/images/menu_thumbnail/cake.png',
+    color: 'from-pink-400 to-pink-600',
+    description: 'Sweet treats and desserts',
+  },
+  { 
+    id: 'food', 
+    name: 'Food', 
+    icon: 'UtensilsCrossed',
+    thumbnail: '/images/menu_thumbnail/food.png',
+    color: 'from-green-400 to-green-600',
+    description: 'Light meals and salads',
+  },
 ];

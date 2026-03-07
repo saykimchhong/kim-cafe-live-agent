@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { AppState, ScreenName, KimState, MenuItem, CartItem } from '@/lib/types';
-import { getMenuItemById } from '@/lib/mockData';
+import { getMenuItemById } from '@/lib/websiteData';
 
 const initialState = {
   screen: 'home' as ScreenName,
@@ -12,6 +12,8 @@ const initialState = {
   paymentAmount: 0,
   isPaymentSuccess: false,
   sendMessage: null as ((data: unknown) => void) | null,
+  aiHighlightedItems: new Set<string>(),
+  manuallySelectedItems: new Set<string>(),
 };
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -67,12 +69,33 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   highlightItem: (itemId: string | null) => {
     console.log('[store] highlightItem ->', itemId);
-    set({ highlightedItem: itemId });
+    const aiHighlightedItems = new Set(get().aiHighlightedItems);
+    if (itemId) {
+      aiHighlightedItems.add(itemId);
+    }
+    set({ highlightedItem: itemId, aiHighlightedItems });
   },
 
-  selectItem: (item: MenuItem | null) => {
-    console.log('[store] selectItem ->', item ? item.id : null);
-    set({ selectedItem: item });
+  selectItem: (item: MenuItem | null, isManual: boolean = false) => {
+    console.log('[store] selectItem ->', item ? item.id : null, 'manual:', isManual);
+    const updates: Partial<AppState> = { selectedItem: item };
+    
+    if (isManual && item) {
+      const manuallySelectedItems = new Set(get().manuallySelectedItems);
+      manuallySelectedItems.add(item.id);
+      updates.manuallySelectedItems = manuallySelectedItems;
+    }
+    
+    set(updates);
+  },
+
+  shouldShowAIBadge: (itemId: string): boolean => {
+    const { aiHighlightedItems, manuallySelectedItems, highlightedItem } = get();
+    return (
+      highlightedItem === itemId &&
+      aiHighlightedItems.has(itemId) &&
+      !manuallySelectedItems.has(itemId)
+    );
   },
 
   setKimState: (kimState: KimState) => {
@@ -92,7 +115,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   resetSession: () => {
-    set({ ...initialState, sendMessage: get().sendMessage });
+    set({ 
+      ...initialState, 
+      sendMessage: get().sendMessage,
+      aiHighlightedItems: new Set(),
+      manuallySelectedItems: new Set(),
+    });
   },
 
   setSendMessage: (sendMessage: (data: unknown) => void) => {

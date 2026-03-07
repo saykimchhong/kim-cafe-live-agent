@@ -14,10 +14,18 @@ export function KimActive({ isMinimized = false }: KimActiveProps) {
   const isSpeaking = kimState === 'speaking';
 
   if (isMinimized) {
+    // Only show when AI is actively responding
+    if (kimState === 'idle' || kimState === 'listening') {
+      return null;
+    }
+    
     return (
       <motion.div
         layout
-        className="fixed bottom-6 right-6 z-30 flex items-center gap-3 bg-white rounded-full shadow-lg px-4 py-3"
+        initial={{ opacity: 0, scale: 0.8, x: 20 }}
+        animate={{ opacity: 1, scale: 1, x: 0 }}
+        exit={{ opacity: 0, scale: 0.8, x: 20 }}
+        className="fixed top-20 right-6 z-30 flex items-center gap-3 bg-white rounded-full shadow-lg px-4 py-3"
       >
         <KimAvatar size="sm" />
         <SoundWave isActive={isSpeaking} />

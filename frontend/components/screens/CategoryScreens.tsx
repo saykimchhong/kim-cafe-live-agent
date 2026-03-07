@@ -1,7 +1,7 @@
 'use client';
 
 import { MenuGrid } from '@/components/Menu';
-import { getMenuByCategory } from '@/lib/mockData';
+import { getMenuByCategory } from '@/lib/websiteData';
 
 export function CoffeeScreen() {
   const items = getMenuByCategory('coffee');

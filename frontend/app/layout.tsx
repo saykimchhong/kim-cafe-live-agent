@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Kim Cafe Vision',
-  description: 'AI-powered cafe ordering assistant',
+  title: 'Lumina Live Agent',
+  description: 'AI-powered ordering Agent for restaurants and retail',
 };
 
 export default function RootLayout({

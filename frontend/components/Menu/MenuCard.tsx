@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles } from 'lucide-react';
 import { MenuItem } from '@/lib/types';
@@ -12,8 +13,9 @@ interface MenuCardProps {
 }
 
 export function MenuCard({ item, index = 0 }: MenuCardProps) {
-  const { highlightedItem, selectItem } = useAppStore();
+  const { highlightedItem, selectItem, shouldShowAIBadge } = useAppStore();
   const isHighlighted = highlightedItem === item.id;
+  const showAIBadge = shouldShowAIBadge(item.id);
 
   return (
     <motion.div
@@ -29,7 +31,7 @@ export function MenuCard({ item, index = 0 }: MenuCardProps) {
       }}
       whileHover={{ scale: isHighlighted ? 1.05 : 1.02 }}
       whileTap={{ scale: 0.98 }}
-      onClick={() => selectItem(item)}
+      onClick={() => selectItem(item, true)}
       className={cn(
         'bg-white rounded-2xl shadow-md overflow-hidden cursor-pointer transition-all duration-300 relative',
         isHighlighted && 'ring-4 ring-primary-400 shadow-xl shadow-primary-200/50'
@@ -37,7 +39,7 @@ export function MenuCard({ item, index = 0 }: MenuCardProps) {
     >
       {/* AI Highlight Badge */}
       <AnimatePresence>
-        {isHighlighted && (
+        {showAIBadge && (
           <motion.div
             initial={{ opacity: 0, scale: 0, y: -10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -64,18 +66,16 @@ export function MenuCard({ item, index = 0 }: MenuCardProps) {
       </AnimatePresence>
 
       <div className="aspect-square bg-surface-100 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary-100 to-primary-200 flex items-center justify-center">
-          <motion.span 
-            className="text-4xl"
-            animate={isHighlighted ? { scale: [1, 1.2, 1] } : {}}
-            transition={{ duration: 0.6, repeat: isHighlighted ? Infinity : 0 }}
-          >
-            {item.category === 'coffee' && '☕'}
-            {item.category === 'bakery' && '🥐'}
-            {item.category === 'cake' && '🍰'}
-            {item.category === 'food' && '🥗'}
-          </motion.span>
-        </div>
+        <Image
+          src={item.image}
+          alt={item.name}
+          fill
+          sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
+          className="object-cover"
+          priority={index < 4}
+        />
+        {/* Gradient overlay for better text contrast */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
       </div>
       
       <div className="p-4 relative z-10">

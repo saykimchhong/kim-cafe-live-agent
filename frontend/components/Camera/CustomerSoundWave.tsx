@@ -49,7 +49,7 @@ export function CustomerSoundWave({ getFrequencyData, isActive, barCount = 12 }:
       {levels.map((level, i) => (
         <motion.div
           key={i}
-          className="w-1.5 bg-gradient-to-t from-primary-500 to-primary-300 rounded-full"
+          className={`bg-gradient-to-t from-primary-500 to-primary-300 rounded-full ${barCount > 48 ? 'w-1' : 'w-1.5'}`}
           animate={{ height: Math.max(4, level * 0.24) }}
           transition={{ duration: 0.05 }}
         />

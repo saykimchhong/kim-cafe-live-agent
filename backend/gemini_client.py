@@ -18,7 +18,6 @@ class GeminiLiveClient:
         on_tool_call: Callable[[str, dict], None] | None = None,
     ):
         settings = get_settings()
-        # Must use v1alpha API version for Live API with function calling
         self.client = genai.Client(
             api_key=settings.google_api_key,
             http_options={"api_version": "v1alpha"},
@@ -31,11 +30,9 @@ class GeminiLiveClient:
         self.on_tool_call = on_tool_call
 
     async def connect(self) -> None:
-        # Reset audio state for new session
         self._last_audio_chunk = None
         self._audio_count = 0
         
-        # Config with tools enabled
         config = types.LiveConnectConfig(
             response_modalities=["AUDIO"],
             speech_config=types.SpeechConfig(
@@ -47,6 +44,11 @@ class GeminiLiveClient:
                 parts=[types.Part(text=get_system_prompt())]
             ),
             tools=get_tool_definitions(),
+            generation_config=types.GenerationConfig(
+                temperature=0.8,
+                top_p=0.95,
+                top_k=40,
+            ),
         )
         
         # Use async context manager properly
@@ -136,10 +138,12 @@ class GeminiLiveClient:
         if not self.session:
             return
         
+        from diagnostic_wrapper import diagnostic
         turn_count = 0
         
         while True:
             turn_count += 1
+            diagnostic.start_turn()
             turn = self.session.receive()
             
             response_count = 0
@@ -168,17 +172,16 @@ class GeminiLiveClient:
                 if text := response.text:
                     has_text = True
                 
-                # Yield tool calls IMMEDIATELY for instant UI updates
                 if hasattr(response, 'tool_call') and response.tool_call:
                     has_tool_call = True
                     for fc in response.tool_call.function_calls:
+                        diagnostic.mark("model_decided_tool", {"tool": fc.name})
                         tool_data = {
                             "name": fc.name,
                             "args": dict(fc.args) if fc.args else {},
                             "id": fc.id if hasattr(fc, 'id') else None,
                         }
                         print(f"[AI] Tool: {tool_data['name']}({tool_data['args']})", flush=True)
-                        # Yield immediately - don't batch!
                         yield {"type": "tool_call", "data": tool_data}
                         if self.on_tool_call:
                             self.on_tool_call(fc.name, dict(fc.args) if fc.args else {})
