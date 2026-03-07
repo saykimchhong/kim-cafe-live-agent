@@ -6,7 +6,6 @@ import { Home, ShoppingCart, Wifi, WifiOff } from 'lucide-react';
 import { useAppStore } from '@/stores/useAppStore';
 import { KimIdle, KimActive } from '@/components/Kim';
 import { CategoryNav, ItemDetail } from '@/components/Menu';
-import { CartFloating } from '@/components/Cart';
 import { CustomerSoundWave } from '@/components/Camera';
 import {
   HomeScreen,
@@ -46,6 +45,7 @@ export default function KioskPage() {
     setKimState,
     setKimMessage,
     setSendMessage,
+    cart,
   } = useAppStore();
 
   // Callback when AI responds - reset waiting flag
@@ -274,8 +274,8 @@ export default function KioskPage() {
   return (
     <div className="min-h-screen bg-surface-50">
       {/* Main container with max-width for large screens */}
-      <div className="max-w-5xl mx-auto">
-        <header className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-surface-200">
+      <div className="max-w-5xl mx-auto relative z-10">
+        <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-surface-200">
           <div className="flex items-center justify-between px-4 py-3">
           <button
             onClick={() => navigateScreen('home')}
@@ -302,13 +302,20 @@ export default function KioskPage() {
           <button
             onClick={() => navigateScreen('cart')}
             className={cn(
-              'flex items-center gap-2 px-3 py-2 rounded-xl transition-colors',
+              'flex items-center gap-2 px-3 py-2 rounded-xl transition-colors relative',
               screen === 'cart'
                 ? 'bg-primary-100 text-primary-600'
                 : 'hover:bg-surface-100 text-surface-600'
             )}
           >
-            <ShoppingCart className="w-5 h-5" />
+            <div className="relative">
+              <ShoppingCart className="w-5 h-5" />
+              {cart.length > 0 && (
+                <span className="absolute -top-2 -right-2 w-5 h-5 bg-primary-500 text-white rounded-full text-xs font-bold flex items-center justify-center">
+                  {cart.reduce((sum, item) => sum + item.quantity, 0)}
+                </span>
+              )}
+            </div>
             <span className="font-medium">Cart</span>
           </button>
         </div>
@@ -335,7 +342,6 @@ export default function KioskPage() {
       </div>
       {/* End of max-width container */}
       {showKimMinimized && <KimActive isMinimized />}
-      <CartFloating />
 
       {/* Video capture - hidden from user but still capturing frames for AI */}
       <video
@@ -348,7 +354,7 @@ export default function KioskPage() {
       <canvas ref={canvasRefCallback} className="hidden" />
 
       {/* Bottom voice wave controls with ink diffusion effect */}
-      <div className="fixed bottom-0 left-0 right-0 h-40 z-30 overflow-hidden pointer-events-none">
+      <div className="fixed bottom-0 left-0 right-0 h-40 z-0 overflow-hidden pointer-events-none">
         {/* Ink blob layers */}
         {inkBlobs.map((blob, i) => (
           <motion.div
@@ -367,7 +373,7 @@ export default function KioskPage() {
             }}
             style={{
               background: `radial-gradient(circle, rgba(249, 115, 22, ${0.6 + voiceVolume * 0.4}) 0%, rgba(251, 146, 60, ${0.4 + voiceVolume * 0.3}) 30%, transparent 70%)`,
-              filter: 'blur(40px)',
+              filter: 'blur(20px)',
               transform: 'translate(-50%, 50%)',
             }}
           />
@@ -386,9 +392,9 @@ export default function KioskPage() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="fixed bottom-0 left-0 right-0 z-30 backdrop-blur-sm"
+        className="fixed bottom-0 left-0 right-0 z-30"
       >
-        <div className="max-w-4xl mx-auto px-4 py-4">
+        <div className="max-w-4xl mx-auto px-4 py-2">
           <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-6">
             {/* Voice wave visualization - horizontal line */}
             <div className="w-full md:w-auto md:flex-1 md:max-w-md">
