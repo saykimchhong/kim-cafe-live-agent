@@ -89,6 +89,7 @@ Open `http://localhost:3000` for the kiosk and `http://localhost:3000/kitchen` f
 
 - [Firebase setup](docs/setup-firebase.md)
 - [Cloud deployment](docs/deploy-gcloud.md)
+- [Backend deploy (Singapore, detailed)](docs/DEPLOY_BACKEND_SINGAPORE.md)
 - [How to test locally](docs/HOW_TO_TEST.md)
 
 ## Notes

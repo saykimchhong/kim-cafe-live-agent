@@ -9,6 +9,10 @@ node_modules
 /backend/venv-ai
 /backend/.env
 /backend/__pycache__
+/backend/*service-account*.json
+/backend/project*-*.json
+/frontend/project*-*.json
+**/*service-account*.json
 
 # Docs
 /docs/*

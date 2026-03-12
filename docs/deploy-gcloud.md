@@ -2,6 +2,8 @@
 
 This guide covers deploying Lumina Live to Google Cloud Run.
 
+For this repository's current backend deployment in Singapore with exact key names and commands, see [DEPLOY_BACKEND_SINGAPORE.md](DEPLOY_BACKEND_SINGAPORE.md).
+
 ---
 
 ## 📋 Prerequisites
@@ -118,11 +120,11 @@ gcloud run deploy lumina-live-backend \
     --concurrency=80 \
     --min-instances=0 \
     --max-instances=10 \
-    --set-env-vars="GOOGLE_CLOUD_PROJECT=your-project-id" \
-    --set-secrets="GOOGLE_API_KEY=GEMINI_API_KEY:latest" \
-    --set-secrets="/app/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest" \
-    --set-env-vars="GOOGLE_APPLICATION_CREDENTIALS=/app/service-account.json"
+    --set-env-vars="GOOGLE_CLOUD_PROJECT=your-project-id,GOOGLE_APPLICATION_CREDENTIALS=/secrets/service-account.json" \
+    --set-secrets="GOOGLE_API_KEY=GEMINI_API_KEY:latest,/secrets/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest"
 ```
+
+  Important: avoid mounting secrets under `/app/...` because that can shadow the app directory and cause startup errors such as `Could not import module "main"`.
 
 Note the service URL output (e.g., `https://lumina-live-backend-xxxxx.run.app`)
 
