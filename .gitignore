@@ -1,5 +1,7 @@
 node_modules
 .next
+/frontend/out
+.firebase/
 .env*.local
 *.log
 .DS_Store

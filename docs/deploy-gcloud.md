@@ -4,6 +4,8 @@ This guide covers deploying Lumina Live to Google Cloud Run.
 
 For this repository's current backend deployment in Singapore with exact key names and commands, see [DEPLOY_BACKEND_SINGAPORE.md](DEPLOY_BACKEND_SINGAPORE.md).
 
+For this repository's frontend deployment to Firebase Hosting with exact commands, see [DEPLOY_FRONTEND_FIREBASE.md](DEPLOY_FRONTEND_FIREBASE.md).
+
 ---
 
 ## 📋 Prerequisites
@@ -130,88 +132,50 @@ Note the service URL output (e.g., `https://lumina-live-backend-xxxxx.run.app`)
 
 ---
 
-## 🌐 Step 5: Build and Deploy Frontend
+## 🌐 Step 5: Build and Deploy Frontend to Firebase Hosting
 
-### Update WebSocket URL
+The current frontend in this repository uses static export (`output: 'export'`) and is deployed to Firebase Hosting.
 
-Update the frontend to connect to your Cloud Run backend. Edit `frontend/.env.local`:
+### 5.1 Login to Firebase
 
-```env
-NEXT_PUBLIC_WS_URL=wss://lumina-live-backend-xxxxx.run.app/ws
-NEXT_PUBLIC_API_URL=https://lumina-live-backend-xxxxx.run.app
+```bash
+npx --prefix frontend firebase login
 ```
 
-### Create Frontend Dockerfile
+### 5.2 Set Backend URLs for Build
 
-```dockerfile
-# frontend/Dockerfile
-FROM node:18-alpine AS builder
-
-WORKDIR /app
-
-COPY package.json yarn.lock ./
-RUN yarn install --frozen-lockfile
-
-COPY . .
-
-ARG NEXT_PUBLIC_WS_URL
-ARG NEXT_PUBLIC_API_URL
-
-ENV NEXT_PUBLIC_WS_URL=$NEXT_PUBLIC_WS_URL
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
-
-RUN yarn build
-
-FROM node:18-alpine AS runner
-
-WORKDIR /app
-
-ENV NODE_ENV=production
-
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/public ./public
-
-EXPOSE 3000
-
-CMD ["node", "server.js"]
+```bash
+BACKEND_URL=$(gcloud run services describe lumina-live-backend --region=asia-southeast1 --format='value(status.url)')
+export NEXT_PUBLIC_API_URL=$BACKEND_URL
+export NEXT_PUBLIC_WS_URL=${BACKEND_URL/https:\/\//wss:\/\/}/ws
 ```
 
-### Update next.config.js
+PowerShell equivalent:
 
-Add standalone output:
-
-```javascript
-// frontend/next.config.js
-/** @type {import('next').NextConfig} */
-const nextConfig = {
-  output: 'standalone',
-}
-
-module.exports = nextConfig
+```powershell
+$BACKEND_URL = gcloud run services describe lumina-live-backend --region asia-southeast1 --format "value(status.url)"
+$env:NEXT_PUBLIC_API_URL = $BACKEND_URL
+$env:NEXT_PUBLIC_WS_URL = ($BACKEND_URL -replace '^https://', 'wss://') + "/ws"
 ```
 
-### Build and Deploy Frontend
+### 5.3 Build Frontend Static Output
 
 ```bash
 cd frontend
-
-# Build with environment variables
-gcloud builds submit \
-    --tag us-central1-docker.pkg.dev/your-project-id/lumina-live/frontend:latest \
-    --substitutions="_NEXT_PUBLIC_WS_URL=wss://lumina-live-backend-xxxxx.run.app/ws,_NEXT_PUBLIC_API_URL=https://lumina-live-backend-xxxxx.run.app"
-
-# Deploy
-gcloud run deploy lumina-live-frontend \
-    --image=us-central1-docker.pkg.dev/your-project-id/lumina-live/frontend:latest \
-    --region=us-central1 \
-    --platform=managed \
-    --allow-unauthenticated \
-    --memory=512Mi \
-    --cpu=1 \
-    --min-instances=0 \
-    --max-instances=5
+yarn build
 ```
+
+### 5.4 Deploy Hosting
+
+From repo root:
+
+```bash
+npx --prefix frontend firebase deploy --only hosting --project your-project-id
+```
+
+Current repository config uses:
+- `firebase.json` → `hosting.site = project05-empty`
+- `firebase.json` → `hosting.public = frontend/out`
 
 ---
 
@@ -219,21 +183,15 @@ gcloud run deploy lumina-live-frontend \
 
 ### Map Custom Domain
 
+- Frontend (Firebase Hosting): add custom domain in Firebase Console → Hosting → Add custom domain.
+- Backend (Cloud Run API): keep Cloud Run domain mapping if needed.
+
 ```bash
-# Map domain to frontend
 gcloud run domain-mappings create \
-    --service=lumina-live-frontend \
-    --domain=lumina.yourdomain.com \
-    --region=us-central1
-
-# Map domain to backend (for API)
-gcloud run domain-mappings create \
-    --service=lumina-live-backend \
-    --domain=api.lumina.yourdomain.com \
-    --region=us-central1
+  --service=lumina-live-backend \
+  --domain=api.lumina.yourdomain.com \
+  --region=your-region
 ```
-
-Follow the DNS configuration instructions provided by Google Cloud.
 
 ---
 
@@ -243,20 +201,17 @@ Follow the DNS configuration instructions provided by Google Cloud.
 
 ```bash
 # Backend logs
-gcloud run services logs read lumina-live-backend --region=us-central1 --limit=100
-
-# Frontend logs
-gcloud run services logs read lumina-live-frontend --region=us-central1 --limit=100
+gcloud run services logs read lumina-live-backend --region=your-region --limit=100
 
 # Tail logs in real-time
-gcloud alpha run services logs tail lumina-live-backend --region=us-central1
+gcloud alpha run services logs tail lumina-live-backend --region=your-region
 ```
 
 ### View Metrics
 
 ```bash
 # Open Cloud Console monitoring
-gcloud run services describe lumina-live-backend --region=us-central1 --format='value(status.url)'
+gcloud run services describe lumina-live-backend --region=your-region --format='value(status.url)'
 ```
 
 Visit [Cloud Run Console](https://console.cloud.google.com/run) for detailed metrics.
