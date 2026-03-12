@@ -6,7 +6,9 @@ import { useAppStore } from '@/stores/useAppStore';
 import { CartItemCard, CartSummary } from '@/components/Cart';
 
 export function CartScreen() {
-  const { cart, navigateScreen, showPaymentQR } = useAppStore();
+  const cart = useAppStore((s) => s.cart);
+  const navigateScreen = useAppStore((s) => s.navigateScreen);
+  const showPaymentQR = useAppStore((s) => s.showPaymentQR);
 
   const total = cart.reduce(
     (sum, item) => sum + item.menuItem.price * item.quantity,

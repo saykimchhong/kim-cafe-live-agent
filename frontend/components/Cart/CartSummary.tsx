@@ -9,7 +9,7 @@ interface CartSummaryProps {
 }
 
 export function CartSummary({ onCheckout }: CartSummaryProps) {
-  const { cart } = useAppStore();
+  const cart = useAppStore((s) => s.cart);
 
   const subtotal = cart.reduce(
     (sum, item) => sum + item.menuItem.price * item.quantity,

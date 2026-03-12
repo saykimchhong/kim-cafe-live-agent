@@ -15,7 +15,7 @@ const iconMap = {
 };
 
 export function HomeScreen() {
-  const { navigateScreen } = useAppStore();
+  const navigateScreen = useAppStore((s) => s.navigateScreen);
 
   return (
     <div className="p-6">

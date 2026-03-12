@@ -5,7 +5,11 @@ import { PaymentQR, PaymentSuccess } from '@/components/Payment';
 import { KimActive } from '@/components/Kim';
 
 export function PaymentScreen() {
-  const { paymentAmount, isPaymentSuccess, completePayment, setKimMessage, setKimState } = useAppStore();
+  const paymentAmount = useAppStore((s) => s.paymentAmount);
+  const isPaymentSuccess = useAppStore((s) => s.isPaymentSuccess);
+  const completePayment = useAppStore((s) => s.completePayment);
+  const setKimMessage = useAppStore((s) => s.setKimMessage);
+  const setKimState = useAppStore((s) => s.setKimState);
 
   const handlePaymentComplete = () => {
     completePayment();

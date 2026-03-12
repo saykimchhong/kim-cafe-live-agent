@@ -6,7 +6,9 @@ import { useAppStore } from '@/stores/useAppStore';
 import { formatPrice } from '@/lib/utils';
 
 export function CartFloating() {
-  const { cart, navigateScreen, screen } = useAppStore();
+  const cart = useAppStore((s) => s.cart);
+  const navigateScreen = useAppStore((s) => s.navigateScreen);
+  const screen = useAppStore((s) => s.screen);
 
   const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const total = cart.reduce(

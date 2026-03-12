@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     google_api_key: str = ""
     google_cloud_project: str = ""
     google_application_credentials: str = ""
-    gemini_model: str = "gemini-2.5-flash-native-audio-preview-12-2025"
+    gemini_model: str = "gemini-2.5-flash-native-audio-latest"
     firestore_collection_orders: str = "orders"
     firestore_collection_sessions: str = "sessions"
 

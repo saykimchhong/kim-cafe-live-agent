@@ -162,15 +162,15 @@ MENU_ITEMS = [
 ]
 
 
+MENU_DICT = {item["id"]: item for item in MENU_ITEMS}
+
+
 def get_menu_by_category(category: str) -> list:
     return [item for item in MENU_ITEMS if item["category"] == category]
 
 
 def get_menu_item_by_id(item_id: str) -> dict | None:
-    for item in MENU_ITEMS:
-        if item["id"] == item_id:
-            return item
-    return None
+    return MENU_DICT.get(item_id)
 
 
 def get_menu_summary() -> str:

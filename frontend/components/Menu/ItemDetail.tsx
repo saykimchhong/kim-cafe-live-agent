@@ -18,13 +18,13 @@ export function ItemDetail({ item, onClose }: ItemDetailProps) {
   const [quantity, setQuantity] = useState(1);
   const [selectedCustomization, setSelectedCustomization] = useState<string | undefined>();
   const [isAdding, setIsAdding] = useState(false);
-  const { addToCart, shouldShowAIBadge } = useAppStore();
+  const addToCart = useAppStore((s) => s.addToCart);
+  const shouldShowAIBadge = useAppStore((s) => s.shouldShowAIBadge);
   const showBadge = shouldShowAIBadge(item.id);
 
   const handleAddToCart = () => {
     setIsAdding(true);
     addToCart(item.id, quantity, selectedCustomization);
-    // Show success animation then close
     setTimeout(() => {
       onClose();
     }, 600);
@@ -50,7 +50,6 @@ export function ItemDetail({ item, onClose }: ItemDetailProps) {
         onClick={(e) => e.stopPropagation()}
         className="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl relative"
       >
-        {/* Success overlay */}
         <AnimatePresence>
           {isAdding && (
             <motion.div
@@ -87,10 +86,8 @@ export function ItemDetail({ item, onClose }: ItemDetailProps) {
             className="object-cover"
             priority
           />
-          {/* Gradient overlay */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
           
-          {/* AI Selection Badge - positioned in image area */}
           <AnimatePresence>
             {showBadge && (
               <motion.div

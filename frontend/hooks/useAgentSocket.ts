@@ -14,77 +14,52 @@ export function useAgentSocket(url?: string) {
   const wsRef = useRef<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const audioContextRef = useRef<AudioContext | null>(null);
-  const audioQueueRef = useRef<Float32Array[]>([]);
-  const isPlayingRef = useRef(false);
+  const nextStartTimeRef = useRef(0);
   const cleanupRef = useRef(false);
   const connectingRef = useRef(false);
 
-  // Play queued audio chunks
-  const playNextChunk = useCallback(() => {
-    if (!audioContextRef.current || audioQueueRef.current.length === 0) {
-      isPlayingRef.current = false;
-      return;
-    }
-
-    isPlayingRef.current = true;
-    const samples = audioQueueRef.current.shift()!;
-
-    // Let the browser resample automatically: create an AudioBuffer with the
-    // source sample rate (24kHz) and let the AudioContext handle resampling.
-    const ctx = audioContextRef.current!;
-    const sourceSampleRate = 24000;
-
-    const audioBuffer = ctx.createBuffer(1, samples.length, sourceSampleRate);
-    const channelData = audioBuffer.getChannelData(0);
-    channelData.set(samples);
-    
-    const source = ctx.createBufferSource();
-    source.buffer = audioBuffer;
-    source.connect(ctx.destination);
-    source.onended = () => {
-      setTimeout(playNextChunk, 0);
-    };
-    source.start();
-  }, []);
-
-  // Convert base64 PCM to Float32Array and queue for playback
   const playAudio = useCallback((base64Audio: string) => {
     try {
-      if (!audioContextRef.current) {
-        audioContextRef.current = new AudioContext();
+      const ctx = audioContextRef.current;
+      if (!ctx) return;
+      if (ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
       }
 
-      if (audioContextRef.current.state === 'suspended') {
-        audioContextRef.current.resume().catch(() => {});
-      }
-      
       const binaryString = atob(base64Audio);
-      const len = binaryString.length;
+      const len = binaryString.length & ~1;
+      if (len === 0) return;
+
       const bytes = new Uint8Array(len);
       for (let i = 0; i < len; i++) {
         bytes[i] = binaryString.charCodeAt(i);
       }
-      
-      const validLen = len - (len % 2);
-      const numSamples = validLen / 2;
-      const float32Array = new Float32Array(numSamples);
-      
+
+      const numSamples = len / 2;
+      const float32 = new Float32Array(numSamples);
       for (let i = 0; i < numSamples; i++) {
-        const low = bytes[i * 2];
-        const high = bytes[i * 2 + 1];
-        let sample = (high << 8) | low;
+        let sample = (bytes[i * 2 + 1] << 8) | bytes[i * 2];
         if (sample >= 32768) sample -= 65536;
-        float32Array[i] = sample / 32768;
+        float32[i] = sample / 32768;
       }
-      
-      audioQueueRef.current.push(float32Array);
-      if (!isPlayingRef.current) {
-        playNextChunk();
-      }
+
+      const audioBuffer = ctx.createBuffer(1, numSamples, 24000);
+      audioBuffer.getChannelData(0).set(float32);
+
+      const source = ctx.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(ctx.destination);
+
+      const now = ctx.currentTime;
+      const startAt = nextStartTimeRef.current < now + 0.04
+        ? now + 0.04
+        : nextStartTimeRef.current;
+      source.start(startAt);
+      nextStartTimeRef.current = startAt + audioBuffer.duration;
     } catch (err) {
       console.error('Audio error:', err);
     }
-  }, [playNextChunk]);
+  }, []);
 
   const handleAgentAction = useCallback((message: AgentMessage) => {
     const { action, payload } = message;
@@ -132,6 +107,9 @@ export function useAgentSocket(url?: string) {
 
       case 'kim_state':
         store.setKimState(payload as KimState);
+        if (payload === 'listening') {
+          nextStartTimeRef.current = 0;
+        }
         break;
 
       case 'kim_speak':
@@ -155,6 +133,11 @@ export function useAgentSocket(url?: string) {
 
       case 'session_timeout':
       case 'session_ended':
+        nextStartTimeRef.current = 0;
+        if (audioContextRef.current) {
+          audioContextRef.current.close().catch(() => {});
+          audioContextRef.current = null;
+        }
         break;
 
       case 'error':
@@ -206,10 +189,6 @@ export function useAgentSocket(url?: string) {
       wsRef.current = null;
       connectingRef.current = false;
       setIsConnected(false);
-      // Only reconnect if not cleaned up
-      if (!cleanupRef.current) {
-        setTimeout(connect, 3000);
-      }
     };
 
     ws.onerror = () => {
@@ -232,14 +211,34 @@ export function useAgentSocket(url?: string) {
         wsRef.current.close();
         wsRef.current = null;
       }
-      if (audioContextRef.current) {
-        audioContextRef.current.close();
-      }
+      // Note: audioContextRef is NOT closed here — it must survive the URL
+      // change (undefined → WS_URL) when the user taps Start, so it is only
+      // closed on full component unmount below.
     };
   }, [connect]);
+
+  // Close AudioContext only when the component fully unmounts.
+  useEffect(() => {
+    return () => {
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+        audioContextRef.current = null;
+      }
+    };
+  }, []);
+
+  const initAudio = useCallback(() => {
+    if (!audioContextRef.current) {
+      audioContextRef.current = new AudioContext();
+    }
+    if (audioContextRef.current.state === 'suspended') {
+      audioContextRef.current.resume().catch(() => {});
+    }
+  }, []);
 
   return {
     sendMessage,
     isConnected,
+    initAudio,
   };
 }

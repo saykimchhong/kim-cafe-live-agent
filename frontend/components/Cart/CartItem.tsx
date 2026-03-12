@@ -12,7 +12,8 @@ interface CartItemProps {
 }
 
 export function CartItemCard({ item, index = 0 }: CartItemProps) {
-  const { updateCartQuantity, removeFromCart } = useAppStore();
+  const updateCartQuantity = useAppStore((s) => s.updateCartQuantity);
+  const removeFromCart = useAppStore((s) => s.removeFromCart);
 
   return (
     <motion.div

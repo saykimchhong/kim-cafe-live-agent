@@ -7,20 +7,99 @@ import { cn, formatPrice } from '@/lib/utils';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-interface KitchenOrder {
-  order_id: string;
-  items: Array<{
-    name: string;
-    quantity: number;
-    customization?: string;
-  }>;
-  customer_appearance: string;
-  customer_name: string;
-  table_or_location: string;
-  total_amount: number;
-  status: 'pending' | 'preparing' | 'ready' | 'completed';
-  created_at: string;
+type KitchenOrderStatus = 'pending' | 'preparing' | 'ready' | 'completed';
+
+interface KitchenOrderItem {
+  name: string;
+  quantity: number;
+  customization?: string;
+  price?: number;
 }
+
+interface KitchenOrder {
+  orderId: string;
+  items: KitchenOrderItem[];
+  customerAppearance: string;
+  customerName: string;
+  tableOrLocation: string;
+  totalAmount: number;
+  status: KitchenOrderStatus;
+  createdAtMs: number;
+}
+
+interface RawKitchenOrder {
+  orderId?: string;
+  order_id?: string;
+  items?: KitchenOrderItem[];
+  customerAppearance?: string;
+  customer_appearance?: string;
+  customerName?: string;
+  customer_name?: string;
+  tableOrLocation?: string;
+  table_or_location?: string;
+  totalAmount?: number | string;
+  total_amount?: number | string;
+  status?: string;
+  createdAt?: unknown;
+  created_at?: unknown;
+}
+
+const isKitchenOrderStatus = (status: string): status is KitchenOrderStatus => {
+  return status === 'pending' || status === 'preparing' || status === 'ready' || status === 'completed';
+};
+
+const parseTimestamp = (value: unknown): number => {
+  if (value instanceof Date) {
+    return value.getTime();
+  }
+
+  if (typeof value === 'string' || typeof value === 'number') {
+    const parsed = new Date(value).getTime();
+    return Number.isNaN(parsed) ? 0 : parsed;
+  }
+
+  if (value && typeof value === 'object') {
+    const maybeFirestoreTimestamp = value as { toDate?: () => Date; seconds?: number; nanoseconds?: number };
+
+    if (typeof maybeFirestoreTimestamp.toDate === 'function') {
+      return maybeFirestoreTimestamp.toDate().getTime();
+    }
+
+    if (typeof maybeFirestoreTimestamp.seconds === 'number') {
+      const milliseconds = maybeFirestoreTimestamp.seconds * 1000;
+      const nanos = typeof maybeFirestoreTimestamp.nanoseconds === 'number'
+        ? Math.floor(maybeFirestoreTimestamp.nanoseconds / 1_000_000)
+        : 0;
+      return milliseconds + nanos;
+    }
+  }
+
+  return 0;
+};
+
+const normalizeOrder = (rawOrder: RawKitchenOrder): KitchenOrder => {
+  const items = Array.isArray(rawOrder.items) ? rawOrder.items : [];
+  const status = typeof rawOrder.status === 'string' && isKitchenOrderStatus(rawOrder.status)
+    ? rawOrder.status
+    : 'pending';
+
+  const totalAmountFromOrder = Number(rawOrder.totalAmount ?? rawOrder.total_amount);
+  const fallbackTotal = items.reduce(
+    (sum, item) => sum + Number(item.price ?? 0) * Number(item.quantity ?? 0),
+    0
+  );
+
+  return {
+    orderId: rawOrder.orderId ?? rawOrder.order_id ?? 'Unknown order',
+    items,
+    customerAppearance: rawOrder.customerAppearance ?? rawOrder.customer_appearance ?? '',
+    customerName: rawOrder.customerName ?? rawOrder.customer_name ?? '',
+    tableOrLocation: rawOrder.tableOrLocation ?? rawOrder.table_or_location ?? '',
+    totalAmount: Number.isFinite(totalAmountFromOrder) ? totalAmountFromOrder : fallbackTotal,
+    status,
+    createdAtMs: parseTimestamp(rawOrder.createdAt ?? rawOrder.created_at),
+  };
+};
 
 export default function KitchenPage() {
   const [orders, setOrders] = useState<KitchenOrder[]>([]);
@@ -31,14 +110,14 @@ export default function KitchenPage() {
     try {
       const res = await fetch(`${API_URL}/kitchen/orders`);
       const data = await res.json();
-      if (data.orders) {
-        // Filter out completed orders, sort by created_at
+      if (Array.isArray(data.orders)) {
         const activeOrders = data.orders
-          .filter((o: KitchenOrder) => o.status !== 'completed')
-          .sort((a: KitchenOrder, b: KitchenOrder) => 
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-          );
+          .map((order: RawKitchenOrder) => normalizeOrder(order))
+          .filter((order: KitchenOrder) => order.status !== 'completed')
+          .sort((a: KitchenOrder, b: KitchenOrder) => b.createdAtMs - a.createdAtMs);
         setOrders(activeOrders);
+      } else {
+        setOrders([]);
       }
       setLastUpdate(new Date());
     } catch (err) {
@@ -48,18 +127,31 @@ export default function KitchenPage() {
     }
   }, []);
 
-  // Initial fetch and polling every 3 seconds
   useEffect(() => {
     fetchOrders();
-    const interval = setInterval(fetchOrders, 3000);
-    return () => clearInterval(interval);
+    let interval = setInterval(fetchOrders, 3000);
+
+    const handleVisibility = () => {
+      if (document.hidden) {
+        clearInterval(interval);
+      } else {
+        fetchOrders();
+        interval = setInterval(fetchOrders, 3000);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, [fetchOrders]);
 
-  const updateOrderStatus = async (orderId: string, status: KitchenOrder['status']) => {
-    // Optimistic update
+  const updateOrderStatus = async (orderId: string, status: KitchenOrderStatus) => {
     setOrders((prev) =>
       prev.map((order) =>
-        order.order_id === orderId ? { ...order, status } : order
+        order.orderId === orderId ? { ...order, status } : order
       )
     );
 
@@ -71,7 +163,6 @@ export default function KitchenPage() {
       });
     } catch (err) {
       console.error('Failed to update order:', err);
-      // Revert on error
       fetchOrders();
     }
   };
@@ -110,7 +201,7 @@ export default function KitchenPage() {
           <AnimatePresence>
             {orders.map((order, index) => (
               <motion.div
-                key={order.order_id}
+                key={order.orderId}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.9 }}
@@ -119,7 +210,7 @@ export default function KitchenPage() {
               >
                 <div className="p-5">
                   <div className="flex items-center justify-between mb-4">
-                    <span className="font-bold text-surface-800">{order.order_id}</span>
+                    <span className="font-bold text-surface-800">{order.orderId}</span>
                     <span
                       className={cn(
                         'px-3 py-1 rounded-full text-sm font-medium border',
@@ -146,29 +237,29 @@ export default function KitchenPage() {
                     ))}
                   </div>
 
-                  {(order.customer_name || order.customer_appearance) && (
+                  {(order.customerName || order.customerAppearance) && (
                     <div className="flex items-center gap-2 text-surface-600 mb-2">
                       <User className="w-4 h-4" />
                       <span className="text-sm">
-                        {order.customer_name && <strong>{order.customer_name}</strong>}
-                        {order.customer_name && order.customer_appearance && ' - '}
-                        {order.customer_appearance}
+                        {order.customerName && <strong>{order.customerName}</strong>}
+                        {order.customerName && order.customerAppearance && ' - '}
+                        {order.customerAppearance}
                       </span>
                     </div>
                   )}
 
                   <div className="flex items-center gap-2 text-surface-500 text-sm">
                     <Clock className="w-4 h-4" />
-                    <span>{order.table_or_location || 'Counter'}</span>
+                    <span>{order.tableOrLocation || 'Counter'}</span>
                     <span className="mx-2">•</span>
-                    <span>{formatPrice(order.total_amount)}</span>
+                    <span>{formatPrice(order.totalAmount)}</span>
                   </div>
                 </div>
 
                 <div className="border-t border-surface-100 p-4 flex gap-2">
                   {order.status === 'pending' && (
                     <button
-                      onClick={() => updateOrderStatus(order.order_id, 'preparing')}
+                      onClick={() => updateOrderStatus(order.orderId, 'preparing')}
                       className="flex-1 py-2 bg-blue-500 text-white rounded-xl font-medium hover:bg-blue-600 transition-colors"
                     >
                       Start Preparing
@@ -176,7 +267,7 @@ export default function KitchenPage() {
                   )}
                   {order.status === 'preparing' && (
                     <button
-                      onClick={() => updateOrderStatus(order.order_id, 'ready')}
+                      onClick={() => updateOrderStatus(order.orderId, 'ready')}
                       className="flex-1 py-2 bg-green-500 text-white rounded-xl font-medium hover:bg-green-600 transition-colors flex items-center justify-center gap-2"
                     >
                       <CheckCircle className="w-5 h-5" />

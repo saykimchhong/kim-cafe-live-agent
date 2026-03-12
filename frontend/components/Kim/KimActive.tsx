@@ -10,11 +10,11 @@ interface KimActiveProps {
 }
 
 export function KimActive({ isMinimized = false }: KimActiveProps) {
-  const { kimState, kimMessage } = useAppStore();
+  const kimState = useAppStore((s) => s.kimState);
+  const kimMessage = useAppStore((s) => s.kimMessage);
   const isSpeaking = kimState === 'speaking';
 
   if (isMinimized) {
-    // Only show when AI is actively responding
     if (kimState === 'idle' || kimState === 'listening') {
       return null;
     }

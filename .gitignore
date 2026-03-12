@@ -3,13 +3,15 @@ node_modules
 .env*.local
 *.log
 .DS_Store
-
+# Assets
+/assets/*
 # Backend
 /backend/venv-ai
 /backend/.env
 /backend/__pycache__
 
 # Docs
-/docs
+/docs/*
+!/docs/*.md
 
 *.json

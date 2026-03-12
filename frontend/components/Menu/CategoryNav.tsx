@@ -14,7 +14,8 @@ const categories = [
 ];
 
 export function CategoryNav() {
-  const { screen, navigateScreen } = useAppStore();
+  const screen = useAppStore((s) => s.screen);
+  const navigateScreen = useAppStore((s) => s.navigateScreen);
 
   return (
     <div className="flex gap-2 p-4 overflow-x-auto">

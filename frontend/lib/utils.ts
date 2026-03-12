@@ -5,8 +5,9 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatPrice(price: number): string {
-  return `$${price.toFixed(2)}`;
+export function formatPrice(price: number | string | null | undefined): string {
+  const numericPrice = typeof price === 'number' ? price : Number(price);
+  return Number.isFinite(numericPrice) ? `$${numericPrice.toFixed(2)}` : '$0.00';
 }
 
 export function generateOrderId(): string {

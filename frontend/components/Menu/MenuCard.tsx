@@ -13,7 +13,9 @@ interface MenuCardProps {
 }
 
 export function MenuCard({ item, index = 0 }: MenuCardProps) {
-  const { highlightedItem, selectItem, shouldShowAIBadge } = useAppStore();
+  const highlightedItem = useAppStore((s) => s.highlightedItem);
+  const selectItem = useAppStore((s) => s.selectItem);
+  const shouldShowAIBadge = useAppStore((s) => s.shouldShowAIBadge);
   const isHighlighted = highlightedItem === item.id;
   const showAIBadge = shouldShowAIBadge(item.id);
 
@@ -37,7 +39,6 @@ export function MenuCard({ item, index = 0 }: MenuCardProps) {
         isHighlighted && 'ring-4 ring-primary-400 shadow-xl shadow-primary-200/50'
       )}
     >
-      {/* AI Highlight Badge */}
       <AnimatePresence>
         {showAIBadge && (
           <motion.div
@@ -52,7 +53,6 @@ export function MenuCard({ item, index = 0 }: MenuCardProps) {
         )}
       </AnimatePresence>
 
-      {/* Highlight pulse overlay */}
       <AnimatePresence>
         {isHighlighted && (
           <motion.div
@@ -74,7 +74,6 @@ export function MenuCard({ item, index = 0 }: MenuCardProps) {
           className="object-cover"
           priority={index < 4}
         />
-        {/* Gradient overlay for better text contrast */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
       </div>
       

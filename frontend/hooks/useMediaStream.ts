@@ -16,8 +16,8 @@ interface MediaStreamConfig {
 
 const defaultConfig: MediaStreamConfig = {
   video: {
-    width: 768,
-    height: 768,
+    width: 512,
+    height: 512,
     facingMode: 'user',
   },
   audio: {
@@ -150,6 +150,15 @@ export function useMediaStream(config: MediaStreamConfig = defaultConfig) {
     setIsActive(false);
   }, []);
 
+  const stopVideo = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getVideoTracks().forEach((track) => track.stop());
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+  }, []);
+
   const captureFrame = useCallback((): string | null => {
     if (!videoRef.current || !canvasRef.current || !isActive) {
       return null;
@@ -167,7 +176,7 @@ export function useMediaStream(config: MediaStreamConfig = defaultConfig) {
 
     ctx.drawImage(video, 0, 0, videoConfig.width!, videoConfig.height!);
 
-    return canvas.toDataURL('image/jpeg', 0.5).split(',')[1];
+    return canvas.toDataURL('image/jpeg', 0.4).split(',')[1];
   }, [isActive, config.video]);
 
   const getFrequencyData = useCallback((): Uint8Array | null => {
@@ -203,6 +212,7 @@ export function useMediaStream(config: MediaStreamConfig = defaultConfig) {
   return {
     start,
     stop,
+    stopVideo,
     captureFrame,
     getFrequencyData,
     onAudioData,

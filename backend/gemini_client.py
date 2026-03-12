@@ -35,11 +35,6 @@ class GeminiLiveClient:
         
         config = types.LiveConnectConfig(
             response_modalities=["AUDIO"],
-            speech_config=types.SpeechConfig(
-                voice_config=types.VoiceConfig(
-                    prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name="Puck")
-                )
-            ),
             system_instruction=types.Content(
                 parts=[types.Part(text=get_system_prompt())]
             ),
@@ -50,8 +45,6 @@ class GeminiLiveClient:
                 top_k=40,
             ),
         )
-        
-        # Use async context manager properly
         self._session_context = self.client.aio.live.connect(
             model=self.model,
             config=config,
@@ -78,7 +71,6 @@ class GeminiLiveClient:
             )
             await self.session.send(input=realtime_input)
         except Exception:
-            # Connection closed - silently ignore
             self._is_connected = False
 
     async def send_video_frame(self, frame_base64: str) -> None:
@@ -154,7 +146,6 @@ class GeminiLiveClient:
             async for response in turn:
                 response_count += 1
                 
-                # Handle audio data - yield immediately for low latency
                 if data := response.data:
                     has_audio = True
                     if isinstance(data, bytes):
@@ -168,7 +159,6 @@ class GeminiLiveClient:
                     if self.on_audio:
                         self.on_audio(data)
                 
-                # Handle text (thinking output) - silent
                 if text := response.text:
                     has_text = True
                 
@@ -186,7 +176,6 @@ class GeminiLiveClient:
                         if self.on_tool_call:
                             self.on_tool_call(fc.name, dict(fc.args) if fc.args else {})
             
-            # Turn complete - minimal log
             if has_audio or has_tool_call:
                 print(f"[AI] Turn #{turn_count} done (audio:{has_audio} tools:{has_tool_call})", flush=True)
             yield {"type": "turn_complete", "data": None}

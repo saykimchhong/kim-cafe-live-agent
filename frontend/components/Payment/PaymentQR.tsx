@@ -15,13 +15,10 @@ export function PaymentQR({ amount, onPaymentComplete }: PaymentQRProps) {
   const [countdown, setCountdown] = useState(10);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const hasCompletedRef = useRef(false);
-  
-  // Use refs to avoid effect re-running
   const onPaymentCompleteRef = useRef(onPaymentComplete);
   onPaymentCompleteRef.current = onPaymentComplete;
 
   useEffect(() => {
-    // Start countdown timer
     timerRef.current = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
@@ -29,18 +26,12 @@ export function PaymentQR({ amount, onPaymentComplete }: PaymentQRProps) {
             clearInterval(timerRef.current);
             timerRef.current = null;
           }
-          
-          // Only complete once
           if (!hasCompletedRef.current) {
             hasCompletedRef.current = true;
-            
-            // Send payment_complete message to backend
             const sendMessage = useAppStore.getState().sendMessage;
             if (sendMessage) {
               sendMessage({ type: 'payment_complete' });
             }
-            
-            // Trigger completion callback
             setTimeout(() => {
               onPaymentCompleteRef.current();
             }, 100);
@@ -57,9 +48,8 @@ export function PaymentQR({ amount, onPaymentComplete }: PaymentQRProps) {
         timerRef.current = null;
       }
     };
-  }, []); // Empty deps - run once on mount
+  }, []);
 
-  // Generate stable QR pattern once
   const qrPattern = useMemo(() => {
     return Array.from({ length: 25 }).map(() => Math.random() > 0.3);
   }, []);
