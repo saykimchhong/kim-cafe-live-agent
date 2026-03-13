@@ -18,16 +18,44 @@ class GeminiLiveClient:
         on_tool_call: Callable[[str, dict], None] | None = None,
     ):
         settings = get_settings()
-        self.client = genai.Client(
-            api_key=settings.google_api_key,
-            http_options={"api_version": "v1alpha"},
-        )
-        self.model = f"models/{settings.gemini_model}"
+        self.settings = settings
+        self.client = genai.Client(api_key=settings.google_api_key)
+        self.model = settings.gemini_model
         self.session = None
+        self._session_context = None
         self._is_connected = False
         self.on_text = on_text
         self.on_audio = on_audio
         self.on_tool_call = on_tool_call
+
+    def _get_model_candidates(self) -> list[str]:
+        configured_model = self.settings.gemini_model.strip()
+        if not configured_model:
+            return ["gemini-2.5-flash-native-audio-latest"]
+
+        if configured_model.startswith("models/"):
+            bare_model = configured_model.replace("models/", "", 1)
+            return [configured_model, bare_model]
+
+        return [configured_model, f"models/{configured_model}"]
+
+    def _build_client(self, api_version: str | None) -> genai.Client:
+        if api_version:
+            return genai.Client(
+                api_key=self.settings.google_api_key,
+                http_options={"api_version": api_version},
+            )
+        return genai.Client(api_key=self.settings.google_api_key)
+
+    async def _reset_session_context(self) -> None:
+        if self._session_context:
+            try:
+                await self._session_context.__aexit__(None, None, None)
+            except Exception:
+                pass
+        self.session = None
+        self._session_context = None
+        self._is_connected = False
 
     async def connect(self) -> None:
         self._last_audio_chunk = None
@@ -45,22 +73,43 @@ class GeminiLiveClient:
                 top_k=40,
             ),
         )
-        self._session_context = self.client.aio.live.connect(
-            model=self.model,
-            config=config,
-        )
-        self.session = await self._session_context.__aenter__()
-        self._is_connected = True
+
+        model_candidates = self._get_model_candidates()
+        api_versions: list[str | None] = ["v1alpha", None]
+        last_error: Exception | None = None
+
+        for attempt in range(1, 4):
+            for api_version in api_versions:
+                for model_candidate in model_candidates:
+                    try:
+                        self.client = self._build_client(api_version)
+                        self._session_context = self.client.aio.live.connect(
+                            model=model_candidate,
+                            config=config,
+                        )
+                        self.session = await self._session_context.__aenter__()
+                        self._is_connected = True
+                        self.model = model_candidate
+                        print(
+                            f"[Gemini] Connected (model={model_candidate}, api_version={api_version or 'default'})",
+                            flush=True,
+                        )
+                        return
+                    except Exception as exc:
+                        last_error = exc
+                        await self._reset_session_context()
+                        print(
+                            f"[Gemini] Connect attempt failed (attempt={attempt}, model={model_candidate}, api_version={api_version or 'default'}): {exc}",
+                            flush=True,
+                        )
+
+            await asyncio.sleep(min(0.5 * attempt, 2.0))
+
+        raise RuntimeError(f"Failed to connect to Gemini Live after retries: {last_error}")
 
     async def disconnect(self) -> None:
-        self._is_connected = False  # Mark disconnected first to stop new sends
-        if self._session_context and self.session:
-            try:
-                await self._session_context.__aexit__(None, None, None)
-            except Exception:
-                pass  # Ignore errors during disconnect
-            self.session = None
-            self._session_context = None
+        self._is_connected = False
+        await self._reset_session_context()
 
     async def send_audio(self, audio_data: bytes) -> None:
         if not self._is_connected or not self.session or len(audio_data) == 0:

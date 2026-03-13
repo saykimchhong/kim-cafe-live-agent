@@ -10,12 +10,18 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$image = "$Region-docker.pkg.dev/$ProjectId/$RepoName/$ImageName:$Tag"
+$image = "${Region}-docker.pkg.dev/${ProjectId}/${RepoName}/${ImageName}:${Tag}"
+$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+$backendPath = Join-Path $repoRoot "backend"
+
+if (-not (Test-Path $backendPath)) {
+  throw "Backend path not found: $backendPath"
+}
 
 Write-Host "Using image: $image"
 gcloud config set project $ProjectId | Out-Null
 
-gcloud builds submit backend --tag $image --project $ProjectId
+gcloud builds submit $backendPath --tag $image --project $ProjectId
 if ($LASTEXITCODE -ne 0) {
   throw "Cloud Build failed."
 }
