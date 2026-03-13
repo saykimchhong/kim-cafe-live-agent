@@ -1,0 +1,82 @@
+name: Deploy Backend to Cloud Run
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Optional image tag override
+        required: false
+        type: string
+  push:
+    branches:
+      - main
+    paths:
+      - backend/**
+      - cloudbuild.yaml
+      - .github/workflows/deploy-backend-cloudrun.yml
+
+env:
+  REGION: asia-southeast1
+  SERVICE_NAME: lumina-live-backend
+  REPO_NAME: lumina-live-sg
+  IMAGE_NAME: backend
+
+jobs:
+  deploy-backend:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOYER_SERVICE_ACCOUNT }}
+
+      - name: Setup gcloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Set active project
+        run: gcloud config set project "${{ secrets.GCP_PROJECT_ID }}"
+
+      - name: Build and push backend image
+        shell: bash
+        run: |
+          if [ -n "${{ github.event.inputs.image_tag }}" ]; then
+            IMAGE_TAG="${{ github.event.inputs.image_tag }}"
+          else
+            IMAGE_TAG="${GITHUB_SHA::7}"
+          fi
+
+          IMAGE_URI="${REGION}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${REPO_NAME}/${IMAGE_NAME}:${IMAGE_TAG}"
+          echo "IMAGE_URI=${IMAGE_URI}" >> "$GITHUB_ENV"
+
+          gcloud builds submit backend --tag "${IMAGE_URI}" --project "${{ secrets.GCP_PROJECT_ID }}"
+
+      - name: Deploy backend to Cloud Run
+        run: |
+          gcloud run deploy "${SERVICE_NAME}" \
+            --image "${IMAGE_URI}" \
+            --region "${REGION}" \
+            --platform managed \
+            --allow-unauthenticated \
+            --memory 1Gi \
+            --cpu 2 \
+            --timeout 3600 \
+            --concurrency 80 \
+            --min-instances 0 \
+            --max-instances 10 \
+            --set-env-vars "GOOGLE_CLOUD_PROJECT=${{ secrets.GCP_PROJECT_ID }},GOOGLE_APPLICATION_CREDENTIALS=/secrets/service-account.json" \
+            --set-secrets "GOOGLE_API_KEY=GEMINI_API_KEY:latest,/secrets/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest"
+
+      - name: Show service URL
+        run: |
+          gcloud run services describe "${SERVICE_NAME}" \
+            --region "${REGION}" \
+            --project "${{ secrets.GCP_PROJECT_ID }}" \
+            --format='value(status.url)'

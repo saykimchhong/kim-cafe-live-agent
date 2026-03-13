@@ -1,4 +1,4 @@
-# Lumina Live - Project Story
+# Lumina Live - Business Story
 
 ## Inspiration
 
@@ -100,82 +100,89 @@ Teaching Kim to handle this gracefully — tracking the actual intent through al
 
 ---
 
-## Accomplishments that we're proud of
+## Deployment Architecture (What We Actually Run)
 
-### Zero-Touch Ordering Actually Works
+### Backend Deployment
 
-We tested with friends and family who had never seen the system. Every single person completed their order without touching the screen — and several said it felt more natural than ordering from a human cashier (who they often couldn't hear clearly anyway).
+- Containerized FastAPI service on Cloud Run (`asia-southeast1`).
+- Image registry via Artifact Registry (`lumina-live-sg`).
+- Runtime secrets injected from Secret Manager:
+	- `GEMINI_API_KEY`
+	- `FIREBASE_SERVICE_ACCOUNT`
+- Firestore used for persistent service/operation data.
 
-### The "How Did You Know?" Moment
+### Frontend Deployment
 
-When staff walked directly to the right customer without calling out names, we saw genuine surprise and delight. One tester said: "Wait, how did they know it was me?" That's the moment we knew we'd created something special.
+- Next.js static export (`output: 'export'`).
+- Build output in `frontend/out`.
+- Hosted on Firebase Hosting (`project05-empty`).
+- Production API and WebSocket endpoints injected at build time:
+	- `NEXT_PUBLIC_API_URL`
+	- `NEXT_PUBLIC_WS_URL`
 
-### It Feels Warm, Not Cold
-
-Technology often feels sterile. We were proud that people described Kim as "friendly," "helpful," and even "charming." One person said talking to Kim felt like "ordering from the nice barista who remembers your usual."
-
-### Real-Time, Every Time
-
-Kim responds instantly. The kitchen sees orders immediately. Staff find customers right away. In a world of spinning loading wheels and "please wait," we built something that just *flows*.
-
----
-
-## What we learned
-
-### 1. Seeing Changes Everything
-
-Adding vision to voice isn't just additive — it's transformative. When Kim can see customers, the interaction becomes grounded in shared reality. She can say "that croissant in the corner looks perfect" while showing it on screen. Both parties are looking at the same thing, like a real conversation.
-
-### 2. Agency Creates Trust
-
-When Kim just talked, customers listened. When Kim started *doing* — navigating screens, highlighting items, building carts — customers trusted her to handle things. The ability to take actions turned Kim from a voice interface into a genuine assistant.
-
-### 3. Personality Isn't Fluff
-
-We initially wrote Kim to be efficient and professional. It felt cold. When we gave her warmth, humor, and small moments of personality ("I'm a huge fan of our carrot cake, but I might be biased — I see it every day!"), engagement skyrocketed.
-
-### 4. Physical + Digital = Magic
-
-The real innovation wasn't the AI conversation — it was connecting digital orders to physical humans through visual description. This "bridge" solved problems that pure-digital or pure-physical systems couldn't address alone.
+<!-- IMAGE: Deployment topology (Firebase Hosting -> Cloud Run -> Gemini/Firestore) -->
 
 ---
 
-## What's next for Lumina Live
+## Why This Matters to Business Teams
 
-### Near Future
+Lumina Live is not a single-vertical product. It is a reusable customer service runtime for any environment where speed, clarity, and personalization are critical.
 
-**Speaking Your Language** — Kim will converse in multiple languages, perfect for tourist-heavy locations. Japanese, Korean, Mandarin, Spanish — whatever helps customers feel at home.
+### Applicable Verticals
 
-**Remembering Regulars** — "Welcome back! Your usual oat latte?" For customers who opt in, Kim can remember preferences and make ordering even faster.
+- Retail and showroom guidance
+- Hospitality and concierge services
+- Healthcare check-in and triage intake
+- Event registration and wayfinding
+- Financial branch and public service kiosks
 
-**Dietary Guardian** — Proactively mentioning allergens, suggesting alternatives, and making sure nobody accidentally orders something they shouldn't.
+### Business Outcomes It Targets
 
-### Bigger Picture
-
-We see Lumina Live expanding far beyond cafes:
-
-**Healthcare** — Patient check-in that's warm, accessible, and multilingual. "I see you're here for your 3pm appointment with Dr. Kim. Let me walk you through the check-in process."
-
-**Hotels** — Lobby assistants that recognize returning guests, remember their preferences, and make check-in feel like coming home.
-
-**Retail** — Shopping helpers that see what you're looking at, understand what you're trying to find, and guide you naturally through the store.
-
-**Events** — Conference check-in that's fast, personal, and eliminates the dreaded registration line.
-
-Anywhere humans interact with digital systems — that's where Kim (or her siblings) could help.
+- Shorter service cycles
+- Lower error rates in fulfillment
+- Higher first-interaction resolution
+- Better customer trust through transparent, guided interaction
 
 ---
 
-## The Heart of It
+## Key Product Decisions
 
-At its core, Lumina Live exists because we believe technology should make human experiences *more* human, not less.
+### Controlled Agency
 
-The best cafe isn't the one with the fastest ordering system. It's the one where someone greets you warmly, listens to what you actually want, and brings your order right to you — knowing exactly who you are.
+The AI agent does not get unrestricted UI control. It can only execute approved tool calls, preserving safe and predictable behavior.
 
-We just gave that experience to everyone, every time.
+### Real-Time Context Consistency
+
+Conversation state, UI state, and backend records are synchronized so handoff errors are minimized.
+
+### Deployment Practicality
+
+Frontend and backend are independently deployable, making operational updates safer and faster for production teams.
 
 ---
 
-<p align="center">
-Built with ☕ and 💜 for the <strong>Gemini Live Agent Challenge</strong>
-</p>
+## What We Learned
+
+1. **Natural conversation is not enough**; reliable state management is what makes production service viable.
+2. **Navigation orchestration** is the bridge between AI understanding and business execution.
+3. **Deployment discipline** (secrets, isolated services, static hosting) is essential for operational trust.
+4. **Business framing matters**: this is a customer service platform pattern, not just a single-domain demo.
+
+---
+
+## Next Roadmap
+
+- Multilingual live service profiles
+- Domain-specific service playbooks by vertical
+- Analytics dashboard for conversion and service quality
+- Enterprise controls for policy, auditability, and compliance
+
+<!-- IMAGE: Roadmap timeline by quarter -->
+
+---
+
+## Final Positioning
+
+Lumina Live is a business-ready live customer service architecture that unifies conversation, interface control, and operations handoff in one real-time system.
+
+It turns AI from a passive responder into an accountable service operator.

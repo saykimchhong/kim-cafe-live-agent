@@ -1,0 +1,69 @@
+name: Deploy Frontend to Firebase Hosting
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - frontend/**
+      - firebase.json
+      - .github/workflows/deploy-frontend-firebase.yml
+
+env:
+  REGION: asia-southeast1
+  BACKEND_SERVICE: lumina-live-backend
+
+jobs:
+  deploy-frontend:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOYER_SERVICE_ACCOUNT }}
+
+      - name: Setup gcloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Set active project
+        run: gcloud config set project "${{ secrets.GCP_PROJECT_ID }}"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
+          cache-dependency-path: frontend/yarn.lock
+
+      - name: Install frontend dependencies
+        run: |
+          corepack enable
+          yarn --cwd frontend install --frozen-lockfile
+
+      - name: Resolve backend URL for frontend build
+        shell: bash
+        run: |
+          BACKEND_URL=$(gcloud run services describe "${BACKEND_SERVICE}" --region "${REGION}" --project "${{ secrets.GCP_PROJECT_ID }}" --format='value(status.url)')
+          BACKEND_WS_URL="${BACKEND_URL/https:/wss:}/ws"
+
+          echo "NEXT_PUBLIC_API_URL=${BACKEND_URL}" >> "$GITHUB_ENV"
+          echo "NEXT_PUBLIC_WS_URL=${BACKEND_WS_URL}" >> "$GITHUB_ENV"
+
+      - name: Build static frontend
+        run: yarn --cwd frontend build
+
+      - name: Deploy to Firebase Hosting
+        run: |
+          npx --prefix frontend firebase deploy \
+            --only hosting \
+            --project "${{ secrets.GCP_PROJECT_ID }}" \
+            --non-interactive

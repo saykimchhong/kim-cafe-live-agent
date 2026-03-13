@@ -251,7 +251,7 @@ gcloud run services update lumina-live-backend \
        --build-config=cloudbuild.yaml
    ```
 
-3. Create `cloudbuild.yaml` in project root:
+3. Use the committed `cloudbuild.yaml` in project root (or modify it for your environment):
 
 ```yaml
 # cloudbuild.yaml
